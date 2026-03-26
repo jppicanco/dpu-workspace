@@ -7,8 +7,8 @@ Juris/
 *.zip
 *.bak
 
-# === Claude Code configs locais ===
-.claude/
+# === Claude Code configs locais (settings sao pessoais de cada maquina) ===
+.claude/settings.local.json
 .mcp.json
 
 # === Python ===

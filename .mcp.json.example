@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "bnp-api": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["CAMINHO/PARA/mcp/bnp-api/server.py"]
+    },
+    "cjf-jurisprudencia": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["CAMINHO/PARA/mcp/cjf-jurisprudencia/server.py"]
+    }
+  }
+}
