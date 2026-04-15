@@ -38,3 +38,8 @@ D*memoriais_original.txt
 *~
 .vscode/
 .idea/
+dpuscript/.env
+dpuscript/eproc_state.json
+dpuscript/eproc_profile/
+dpuscript/logs/
+dpuscript/estado/
