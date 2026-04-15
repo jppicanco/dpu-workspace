@@ -1,0 +1,10 @@
+# Dependências Python do dpuscript.
+# Instalar via: .venv\Scripts\python.exe -m pip install -r requirements.txt
+# Binário externo: Tesseract-OCR (https://github.com/UB-Mannheim/tesseract/wiki)
+#   instalar com suporte a português (por.traineddata)
+
+playwright>=1.40
+httpx>=0.27
+pymupdf>=1.24
+pytesseract>=0.3
+Pillow>=10
