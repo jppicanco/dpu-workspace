@@ -50,11 +50,29 @@ def _profile_ok() -> bool:
     return PROFILE_DIR.is_dir() and any(PROFILE_DIR.iterdir())
 
 
-async def _get_context() -> BrowserContext:
-    """Retorna context persistente (perfil completo do Edge)."""
-    global _playwright, _context
+_headless_mode = True  # inicia em headless; vira False se precisar 2FA interativo
+_ja_tentou_reauth = False  # anti-recursão: só 1 reauth interativa por execução
+
+
+async def _get_context(headless: bool | None = None) -> BrowserContext:
+    """Retorna context persistente (perfil completo do Edge).
+
+    Se headless=None, usa _headless_mode global (padrão True).
+    Se mudar headless, fecha o context atual e reabre no modo pedido.
+    """
+    global _playwright, _context, _headless_mode
+    modo_pedido = _headless_mode if headless is None else headless
+
     if _context:
-        return _context
+        # Se o contexto está aberto no modo certo, reusa
+        if modo_pedido == _headless_mode:
+            return _context
+        # Modo mudou — fecha e reabre
+        try:
+            await _context.close()
+        except Exception:
+            pass
+        _context = None
 
     if not _profile_ok():
         raise RuntimeError(
@@ -65,19 +83,119 @@ async def _get_context() -> BrowserContext:
     if not _playwright:
         _playwright = await async_playwright().start()
 
-    # launch_persistent_context usa o perfil em disco (cookies, localStorage,
-    # IndexedDB, tudo). Igual abrir o Edge do JP com o user-data-dir.
     try:
         _context = await _playwright.chromium.launch_persistent_context(
             user_data_dir=str(PROFILE_DIR),
-            headless=True,
+            headless=modo_pedido,
             channel="msedge",
             viewport={"width": 1366, "height": 900},
         )
+        _headless_mode = modo_pedido
     except Exception as e:
         _log(f"LAUNCH_PERSISTENT_ERRO {e}")
         raise
     return _context
+
+
+async def _reautenticar_interativo() -> None:
+    global _ja_tentou_reauth
+    _ja_tentou_reauth = True
+    """Abre Edge VISÍVEL pro usuário digitar 2FA. Aguarda chegar no Painel.
+
+    Usado quando o e-Proc pediu 2FA em modo headless. JP vê a janela,
+    digita o código, e o script continua assim que detecta o Painel.
+    """
+    global _page, _context
+    _log("REAUTH_INICIO abrindo navegador visivel pro 2FA")
+
+    # Força reopen em headful
+    if _context:
+        try:
+            await _context.close()
+        except Exception:
+            pass
+        _context = None
+    _page = None
+
+    context = await _get_context(headless=False)
+    page = context.pages[0] if context.pages else await context.new_page()
+    _page = page
+
+    # Faz login auto com .env
+    usuario = os.environ.get("EPROC_USUARIO", "")
+    senha = os.environ.get("EPROC_SENHA", "")
+    try:
+        await page.goto(f"{EPROC_BASE}/", wait_until="domcontentloaded", timeout=TIMEOUT_NAV)
+        await page.wait_for_timeout(1000)
+        if await _tem_form_login(page):
+            await page.fill("#txtUsuario", usuario)
+            await page.fill("#pwdSenha", senha)
+            await page.click("#sbmEntrar")
+    except Exception as e:
+        _log(f"REAUTH_FORM_ERRO {e}")
+
+    print()
+    print("=" * 70)
+    print("[!] e-Proc pediu 2FA. Navegador VISIVEL abriu no seu PC.")
+    print("    Digite o codigo do app autenticador na janela,")
+    print("    marque 'Nao usar o 2FA neste dispositivo',")
+    print("    selecione o perfil ASSISTENTE se aparecer,")
+    print("    e aguarde chegar no Painel.")
+    print("=" * 70)
+    print()
+
+    # Aguarda JP interagir (polling até URL ser do painel autenticado)
+    import time as _t
+    deadline = _t.monotonic() + 300  # 5min
+    ultima_url_mostrada = ""
+    while _t.monotonic() < deadline:
+        await page.wait_for_timeout(2000)
+        url_atual = page.url
+        if url_atual != ultima_url_mostrada:
+            segs_restantes = int(deadline - _t.monotonic())
+            print(f"  [aguardando... {segs_restantes}s] URL: {url_atual[:90]}")
+            ultima_url_mostrada = url_atual
+        # Critério FORTE: URL contém painel_assistente_procurador_listar ou painel_procurador_listar
+        if "painel_assistente_procurador_listar" in url_atual or "painel_procurador_listar" in url_atual:
+            _log(f"REAUTH_OK chegou_painel url={url_atual[:100]}")
+            print("[OK] Painel detectado - continuando automaticamente")
+            break
+        # Tenta clicar no perfil ASSISTENTE se tela de seleção aparecer
+        try:
+            body = await page.inner_text("body", timeout=2000)
+            if "Seleção de perfil" in body:
+                await page.evaluate(f"""
+                    () => {{
+                        const perfil = '{PERFIL_ASSISTENTE}';
+                        const els = document.querySelectorAll('[onclick*="acaoLogar"]');
+                        for (const e of els) {{
+                            const ctx = e.closest('tr') || e.parentElement;
+                            if (ctx && ctx.textContent && ctx.textContent.includes(perfil)) {{
+                                const m = (e.getAttribute('onclick')||'').match(/acaoLogar\\(['"]([^'"]+)['"]\\)/);
+                                if (m && typeof window.acaoLogar === 'function') {{
+                                    window.acaoLogar(m[1]);
+                                    return true;
+                                }}
+                            }}
+                        }}
+                    }}
+                """)
+        except Exception:
+            pass
+    else:
+        _log("REAUTH_TIMEOUT 5min sem chegar no painel")
+        raise RuntimeError("Timeout de 5min aguardando login interativo — abortando.")
+
+    # Volta pra headless pra continuar a execução
+    _log("REAUTH_OK voltando_pra_headless")
+    if _context:
+        try:
+            await _context.close()
+        except Exception:
+            pass
+        _context = None
+    _page = None
+    await _get_context(headless=True)
 
 
 async def _get_page() -> Page:
@@ -244,13 +362,17 @@ async def garantir_logado() -> Page:
             await page.wait_for_timeout(500)
             continue
 
-        # 2FA? (não deveria, cookie no perfil)
+        # 2FA? (cookie expirou → reautenticação interativa)
         if "2 fatores" in body.lower() or "autenticação em 2" in body.lower():
-            _log("LOGIN_PEDIU_2FA perfil sem cookie de confianca")
-            raise RuntimeError(
-                "e-Proc pediu 2FA — o cookie de 'dispositivo confiável' expirou.\n"
-                "Rode novamente: .venv\\Scripts\\python.exe setup_eproc.py"
-            )
+            if _ja_tentou_reauth:
+                _log("LOGIN_2FA_APOS_REAUTH desistindo")
+                raise RuntimeError(
+                    "e-Proc pediu 2FA mesmo após reautenticação interativa. "
+                    "Sessão/perfil podem estar corrompidos — rode setup_eproc.py"
+                )
+            _log("LOGIN_PEDIU_2FA acionando reautenticacao interativa")
+            await _reautenticar_interativo()
+            return await garantir_logado()
 
         # Erro de credenciais?
         if any(e in body.lower() for e in ("senha inválida", "senha invalida", "usuário inválido")):
@@ -383,72 +505,198 @@ async def abrir_processo(numero_cnj: str) -> Page:
 async def listar_documentos_processo(numero_cnj: str) -> list[dict]:
     """Lista TODOS os documentos acessíveis do processo (autenticado).
 
-    Retorna lista de dicts com:
-      - doc_id, evento_id, key, hash, mesmo_grau, nome (se achar no texto vizinho)
-      - url_completa (pra usar em baixar_documento)
+    Extrai metadados do evento (seq, data, descrição) junto com o link do doc.
+    Formato de cada doc:
+      - doc_id, evento_id, key, hash, mesmo_grau
+      - nome (DESPADEC1, ACORDO1, PET1, etc — nome REAL)
+      - evento_numero, evento_data, evento_descricao (do <tr> da tabela)
+      - url (pra usar em baixar_documento)
     """
-    import re
     page = await abrir_processo(numero_cnj)
-    html = await page.content()
-    # Normaliza entidades HTML
-    html_norm = html.replace("&amp;", "&")
-    # Regex pros links de acessar_documento (com mesmoGrau + hash)
-    pattern = re.compile(
-        r"acao=acessar_documento"
-        r"&doc=([^&\"'\s]+)"
-        r"&evento=([^&\"'\s]+)"
-        r"&key=([^&\"'\s]+)"
-        r"(?:&mesmoGrau=([SN]))?"
-        r"&hash=([^&\"'\s<>]+)",
-        re.IGNORECASE,
-    )
+
+    docs_raw = await page.evaluate("""
+        () => {
+            const docs = [];
+            // Eventos são linhas <tr> contendo <a href="...acessar_documento...">
+            const rows = document.querySelectorAll('tr');
+            rows.forEach(tr => {
+                const links = tr.querySelectorAll('a[href*="acessar_documento"]');
+                if (!links.length) return;
+                const cells = tr.querySelectorAll('td');
+                // Extrai metadados do evento da linha
+                let evento_numero = '', evento_data = '', evento_descricao = '';
+                cells.forEach(td => {
+                    const txt = (td.textContent || '').trim();
+                    if (!evento_numero && /^\\d{1,4}$/.test(txt)) {
+                        evento_numero = txt;
+                    } else if (!evento_data && /\\d{2}\\/\\d{2}\\/\\d{4}/.test(txt)) {
+                        const m = txt.match(/\\d{2}\\/\\d{2}\\/\\d{4}(?: \\d{2}:\\d{2}:\\d{2})?/);
+                        if (m) evento_data = m[0];
+                    }
+                });
+                // Descrição do evento = maior cell de texto da linha
+                let max = '';
+                cells.forEach(td => {
+                    const t = (td.textContent || '').trim();
+                    if (t.length > max.length) max = t;
+                });
+                evento_descricao = max.slice(0, 800);
+
+                links.forEach(a => {
+                    const href = (a.getAttribute('href') || '').replace(/&amp;/g, '&');
+                    const m = href.match(/doc=([^&]+)[\\s\\S]*?evento=([^&]+)[\\s\\S]*?key=([^&]+)(?:[\\s\\S]*?mesmoGrau=([SN]))?[\\s\\S]*?hash=([^&"'\\s<>]+)/);
+                    if (!m) return;
+                    docs.push({
+                        doc_id: m[1],
+                        evento_id: m[2],
+                        key: m[3],
+                        mesmo_grau: m[4] || '',
+                        hash: m[5],
+                        nome: (a.textContent || '').trim() || ('DOC_' + m[1].slice(0, 8)),
+                        evento_numero: evento_numero,
+                        evento_data: evento_data,
+                        evento_descricao: evento_descricao,
+                    });
+                });
+            });
+            return docs;
+        }
+    """)
+
+    # Dedup por (doc_id, evento_id) + monta url completa
     docs = []
     seen = set()
-    for m in pattern.finditer(html_norm):
-        doc_id, evento_id, key, mesmo_grau, hash_val = m.groups()
-        chave = (doc_id, evento_id)
+    for d in docs_raw:
+        chave = (d["doc_id"], d["evento_id"])
         if chave in seen:
-            continue  # dedup por (doc, evento)
+            continue
         seen.add(chave)
-        # Procura nome/descrição do doc nas imediações do link (até 200 chars depois)
-        nome = ""
-        try:
-            idx = m.end()
-            trecho = html_norm[idx:idx + 400]
-            # texto entre > e < próximo ao link
-            m_nome = re.search(r">\s*([A-ZÇÃÁÉÍÓÚ][^<]{3,80})\s*<", trecho)
-            if m_nome:
-                nome = m_nome.group(1).strip()
-        except Exception:
-            pass
-
         url = (
             f"{EPROC_BASE}/controlador.php?acao=acessar_documento_implementacao"
             f"&acao_origem=acessar_documento"
-            f"&doc={doc_id}"
-            f"&evento={evento_id}"
-            f"&key={key}"
-            f"&hash={hash_val}"
+            f"&doc={d['doc_id']}"
+            f"&evento={d['evento_id']}"
+            f"&key={d['key']}"
+            f"&hash={d['hash']}"
         )
-        if mesmo_grau:
-            url += f"&mesmoGrau={mesmo_grau}"
-        docs.append({
-            "doc_id": doc_id,
-            "evento_id": evento_id,
-            "key": key,
-            "hash": hash_val,
-            "mesmo_grau": mesmo_grau or "",
-            "nome": nome or f"DOC_{doc_id[:8]}",
-            "url": url,
-        })
+        if d.get("mesmo_grau"):
+            url += f"&mesmoGrau={d['mesmo_grau']}"
+        d["url"] = url
+        docs.append(d)
+
     _log(f"LISTAR_DOCS cnj={numero_cnj} encontrados={len(docs)}")
     return docs
 
 
+_TESSERACT_PATH = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+
+def _ocr_pdf_fitz(pdf_doc) -> str:
+    """Roda Tesseract OCR em cada página do PDF (já aberto via fitz).
+
+    Só é chamado quando PyMuPDF não extraiu texto (PDF scan/imagem).
+    Retorna o texto concatenado; string vazia se OCR falhar em tudo.
+    """
+    try:
+        import pytesseract
+        from PIL import Image
+        import io
+    except ImportError as e:
+        _log(f"OCR_IMPORT_ERRO {e}")
+        return ""
+    # Configura o path do binário (nosso shell do Python não tem no PATH)
+    if Path(_TESSERACT_PATH).exists():
+        pytesseract.pytesseract.tesseract_cmd = _TESSERACT_PATH
+
+    paginas_txt: list[str] = []
+    for i, page in enumerate(pdf_doc):
+        try:
+            # Renderiza página como imagem (DPI 200 é bom equilíbrio qualidade/tempo)
+            pix = page.get_pixmap(dpi=200)
+            img_bytes = pix.tobytes("png")
+            img = Image.open(io.BytesIO(img_bytes))
+            txt = pytesseract.image_to_string(img, lang="por")
+            if txt.strip():
+                paginas_txt.append(txt)
+        except Exception as e:
+            _log(f"OCR_PAGINA_{i}_ERRO {str(e)[:100]}")
+            continue
+    total = "\n\n".join(paginas_txt)
+    _log(f"OCR_CONCLUIDO paginas={len(paginas_txt)}/{len(pdf_doc)} chars={len(total)}")
+    return total
+
+
+async def baixar_pdf_bytes(doc: dict) -> dict:
+    """Fase A: SÓ baixa bytes do doc, sem processar.
+
+    Mantém sessão e-Proc aberta o mínimo possível. Processar (extrair texto,
+    OCR) fica pra depois, com conexão já fechada.
+
+    Retorna {bytes: bytes, content_type: str, erro: str|None}.
+    """
+    context = await _get_context()
+    url = doc["url"]
+    try:
+        response = await context.request.get(url, timeout=TIMEOUT_NAV)
+        if not response.ok:
+            return {"bytes": b"", "content_type": "", "erro": f"HTTP {response.status}"}
+        content_type = response.headers.get("content-type", "").lower()
+        body = await response.body()
+        return {"bytes": body, "content_type": content_type, "erro": None}
+    except Exception as e:
+        return {"bytes": b"", "content_type": "", "erro": str(e)[:200]}
+
+
+def extrair_texto_pdf(pdf_bytes: bytes) -> dict:
+    """Fase B (local, sem sessão): extrai texto do PDF.
+
+    Tenta PyMuPDF primeiro (~0.1s). Se vazio (PDF scan/imagem), roda
+    Tesseract OCR em português. Retorna {conteudo: str, ocr_usado: bool, erro: str|None}.
+    """
+    try:
+        import fitz
+        pdf_doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        paginas = []
+        for p in pdf_doc:
+            t = p.get_text()
+            if t.strip():
+                paginas.append(t)
+        texto = "\n\n".join(paginas)
+
+        if not texto.strip():
+            # PDF scan — roda OCR
+            _log("OCR_ACIONADO pdf sem texto extraivel")
+            texto_ocr = _ocr_pdf_fitz(pdf_doc)
+            pdf_doc.close()
+            if texto_ocr.strip():
+                return {"conteudo": texto_ocr, "ocr_usado": True, "erro": None}
+            return {"conteudo": "", "ocr_usado": True, "erro": "PDF scan sem texto OCR"}
+
+        pdf_doc.close()
+        return {"conteudo": texto, "ocr_usado": False, "erro": None}
+    except Exception as e:
+        return {"conteudo": "", "ocr_usado": False, "erro": f"pdf_parse: {e}"}
+
+
+def extrair_texto_html(html_bytes: bytes) -> dict:
+    """Fase B alternativa: extrai texto de HTML (resposta e-Proc não-PDF)."""
+    import re as _re
+    html = html_bytes.decode("utf-8", errors="replace")
+    texto = _re.sub(r'<style[^>]*>.*?</style>', '', html, flags=_re.DOTALL | _re.IGNORECASE)
+    texto = _re.sub(r'<script[^>]*>.*?</script>', '', texto, flags=_re.DOTALL | _re.IGNORECASE)
+    texto = _re.sub(r'<[^>]+>', ' ', texto)
+    texto = _re.sub(r'&nbsp;', ' ', texto)
+    texto = _re.sub(r'[ \t]+', ' ', texto)
+    texto = _re.sub(r'\n{3,}', '\n\n', texto).strip()
+    return {"conteudo": texto, "ocr_usado": False, "erro": None}
+
+
 async def baixar_documento(doc: dict) -> dict:
-    """Baixa um documento do e-Proc via sessão autenticada.
+    """Compatibilidade: baixa + extrai numa chamada.
 
     Retorna {conteudo: str, pdf_bytes: bytes | None, erro: str | None}.
+    Prefira usar baixar_pdf_bytes + extrair_texto_pdf em 2 fases pra
+    liberar sessão e-Proc antes de processar.
     """
     context = await _get_context()
     url = doc["url"]
@@ -469,8 +717,18 @@ async def baixar_documento(doc: dict) -> dict:
                     t = p.get_text()
                     if t.strip():
                         paginas.append(t)
-                pdf_doc.close()
                 texto = "\n\n".join(paginas)
+
+                # Se extração normal falhou (PDF scan/imagem), roda OCR via Tesseract
+                if not texto.strip():
+                    _log(f"OCR_ACIONADO pdf sem texto — rodando Tesseract pt-BR")
+                    texto_ocr = _ocr_pdf_fitz(pdf_doc)
+                    pdf_doc.close()
+                    if texto_ocr.strip():
+                        return {"conteudo": texto_ocr, "pdf_bytes": body, "erro": None}
+                    return {"conteudo": "", "pdf_bytes": body, "erro": "PDF scan sem texto OCR"}
+
+                pdf_doc.close()
                 return {"conteudo": texto, "pdf_bytes": body, "erro": None}
             except Exception as e:
                 return {"conteudo": "", "pdf_bytes": body, "erro": f"pdf_parse: {e}"}

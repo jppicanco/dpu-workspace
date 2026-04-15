@@ -40,6 +40,7 @@ ESTADO_DIR = SCRIPT_DIR / "estado"
 ESTADO_FILE = ESTADO_DIR / "pajs_processados.json"
 LOG_DIR = SCRIPT_DIR / "logs"
 ENV_FILE = SCRIPT_DIR / ".env"
+EPROC_PROFILE_DIR = SCRIPT_DIR / "eproc_profile"  # se existir → modo TNU autenticado
 
 # sisdpu tem imports relativos internos — precisa do seu dir no sys.path
 sys.path.insert(0, str(MCP_DIR / "sisdpu"))
@@ -526,17 +527,23 @@ def filtrar_pecas_tnu(documentos: list[dict]) -> list[dict]:
 
 
 def nome_arquivo_peca(doc: dict) -> str:
+    """Nome único por peça: YYYY-MM-DD_ev{num}_{NOME_REAL}.
+
+    Usa o nome real do doc (ex: DESPADEC1, PET1, COMP1, COMP2) retornado pelo
+    e-Proc autenticado. Isso evita colisão quando várias peças pertencem ao
+    mesmo evento (ev1 pode ter PET1 + COMP1 + COMP2 + PROC1 etc).
+    """
+    import re as _re
     dt = parse_data(doc.get("evento_data", "") or "")
     data_s = dt.strftime("%Y-%m-%d") if dt else "0000-00-00"
-    desc = (doc.get("evento_descricao", "") or "").upper()
-    nome_raw = (doc.get("nome", "DOC") or "DOC").upper()
-    tipo = "DOC"
-    for kw in ("DESPADEC", "DESPACHO", "DECIS", "SENTEN", "ACORD", "VOTO", "INTIMA"):
-        if kw in nome_raw or kw in desc:
-            tipo = kw
-            break
     ev = doc.get("evento_numero", "0")
-    return f"{data_s}_{tipo}_ev{ev}"  # sem extensão; adiciono na hora
+    # Nome real do doc (sem caracteres problemáticos pra filesystem)
+    nome_raw = (doc.get("nome", "") or "").strip()
+    nome_safe = _re.sub(r"[^A-Za-z0-9_.-]", "_", nome_raw)[:40]
+    if not nome_safe or nome_safe == "_":
+        # fallback se não tiver nome real: usa doc_id curto
+        nome_safe = f"DOC_{(doc.get('doc_id','') or '')[:8]}"
+    return f"{data_s}_ev{ev}_{nome_safe}"
 
 
 # ----- processar PAJ -----
@@ -598,9 +605,12 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
         metadata["processo_judicial"] = formatar_cnj(cnj_digitos)
         metadata["processo_judicial_digitos"] = cnj_digitos
 
-    # 3. DataJud
+    # 3. Foro detectado primeiro (antes de decidir se DataJud vale a pena)
+    foro = detectar_foro(det, None, cnj_digitos, alvo.get("desc", ""))
+
+    # 4. DataJud — só pra NÃO-TNU (TNU autenticado já dá mais dados que DataJud)
     datajud_data: dict | None = None
-    if cnj_digitos:
+    if cnj_digitos and foro != "TNU":
         log(f"  [datajud] {formatar_cnj(cnj_digitos)}")
         try:
             datajud_data = await clients["datajud"].consultar_processo(cnj_digitos)
@@ -608,65 +618,127 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
                 json.dumps(datajud_data, indent=2, ensure_ascii=False, default=str),
                 encoding="utf-8",
             )
+            # Redetecta foro incluindo DataJud (pode ajustar de OUTRO pra STJ)
+            foro = detectar_foro(det, datajud_data, cnj_digitos, alvo.get("desc", ""))
         except Exception as e:
             info["erros"].append(f"datajud: {e}")
-
-    # 4. Foro
-    foro = detectar_foro(det, datajud_data, cnj_digitos, alvo.get("desc", ""))
     info["foro"] = foro
     metadata["foro_detectado"] = foro
 
-    # 5. TNU — peças
+    # 5. TNU — peças (AUTENTICADO se perfil existir, senão modo público)
     eventos_tnu: dict | None = None
     pecas_baixadas: list[dict] = []
     if foro in ("TNU",) and cnj_digitos:
-        log(f"  [tnu] eventos + docs")
+        usa_autenticado = EPROC_PROFILE_DIR.is_dir() and any(EPROC_PROFILE_DIR.iterdir())
+        log(f"  [tnu] eventos + docs (modo={'AUTENTICADO' if usa_autenticado else 'publico'})")
         try:
             tnu_proc = await clients["tnu"].consultar_processo(formatar_cnj(cnj_digitos))
         except Exception as e:
             tnu_proc = {"erro": str(e)}
             info["erros"].append(f"tnu.consultar: {e}")
 
-        try:
-            docs_result = await clients["tnu"].listar_documentos(formatar_cnj(cnj_digitos))
-        except Exception as e:
-            docs_result = {"erro": str(e), "documentos": []}
-            info["erros"].append(f"tnu.listar_documentos: {e}")
+        docs_lista: list[dict] = []
+        if usa_autenticado:
+            try:
+                docs_lista = await clients["eproc_auth"].listar_documentos_processo(formatar_cnj(cnj_digitos))
+                log(f"  [tnu] autenticado listou {len(docs_lista)} docs")
+            except Exception as e:
+                import traceback
+                log(f"  [tnu] FALHA autenticado: {type(e).__name__}: {e}")
+                traceback.print_exc()
+                info["erros"].append(f"eproc_auth.listar: {e}")
+                usa_autenticado = False
 
+        if not usa_autenticado:
+            try:
+                docs_result = await clients["tnu"].listar_documentos(formatar_cnj(cnj_digitos))
+                docs_lista = docs_result.get("documentos", [])
+            except Exception as e:
+                info["erros"].append(f"tnu.listar_documentos: {e}")
+
+        pecas_selecionadas = filtrar_pecas_tnu(docs_lista)
         eventos_tnu = {
             "consulta": tnu_proc,
-            "total_documentos": docs_result.get("total_documentos", 0),
-            "pecas_selecionadas": filtrar_pecas_tnu(docs_result.get("documentos", [])),
+            "modo": "AUTENTICADO" if usa_autenticado else "PUBLICO",
+            "total_documentos": len(docs_lista),
+            "pecas_selecionadas": pecas_selecionadas,
         }
         (pasta / "eventos_tnu.json").write_text(
             json.dumps(eventos_tnu, indent=2, ensure_ascii=False, default=str),
             encoding="utf-8",
         )
 
-        for doc in eventos_tnu["pecas_selecionadas"]:
-            nome_base = nome_arquivo_peca(doc)
-            try:
-                log(f"  [tnu] baixa {nome_base}")
-                conteudo = await clients["tnu"].ler_documento(
-                    doc["doc_id"], doc["evento_id"], doc["key"], doc["hash"],
-                    doc.get("nome", ""),
-                )
-                if conteudo.get("erro"):
-                    info["erros"].append(f"peça {nome_base}: {conteudo['erro']}")
-                    continue
-                (pecas_dir / f"{nome_base}.txt").write_text(
-                    conteudo.get("conteudo", ""), encoding="utf-8",
-                )
-                pecas_baixadas.append({
-                    "arquivo": f"peças/{nome_base}.txt",
-                    "evento": doc.get("evento_numero"),
-                    "data": doc.get("evento_data"),
-                    "nome_doc": doc.get("nome", ""),
-                    "tamanho": conteudo.get("tamanho_caracteres", 0),
-                })
-            except Exception as e:
-                info["erros"].append(f"peça {nome_base}: {e}")
-            await asyncio.sleep(0.5)
+        if usa_autenticado:
+            # FASE A: baixa TODOS os PDFs em sequência rápida (sessão curta)
+            log(f"  [tnu] FASE A — baixando {len(pecas_selecionadas)} PDFs...")
+            docs_baixados = []  # [(doc, nome_base, pdf_bytes, content_type)]
+            for doc in pecas_selecionadas:
+                nome_base = nome_arquivo_peca(doc)
+                try:
+                    res = await clients["eproc_auth"].baixar_pdf_bytes(doc)
+                    erro = res.get("erro")
+                    if erro:
+                        info["erros"].append(f"peça {nome_base} download: {erro}")
+                        continue
+                    pdf_bytes = res.get("bytes", b"")
+                    content_type = res.get("content_type", "")
+                    # Salva PDF direto (se for PDF)
+                    if pdf_bytes[:4] == b"%PDF" or "pdf" in content_type:
+                        (pecas_dir / f"{nome_base}.pdf").write_bytes(pdf_bytes)
+                    docs_baixados.append((doc, nome_base, pdf_bytes, content_type))
+                except Exception as e:
+                    info["erros"].append(f"peça {nome_base} download: {e}")
+                await asyncio.sleep(0.3)
+            log(f"  [tnu] FASE A OK — {len(docs_baixados)} PDFs em disco")
+
+            # FASE B: extração de texto local (OCR só pra scans) — sem sessão e-Proc
+            log(f"  [tnu] FASE B — extraindo texto (OCR só quando necessário)...")
+            for doc, nome_base, pdf_bytes, content_type in docs_baixados:
+                try:
+                    if pdf_bytes[:4] == b"%PDF" or "pdf" in content_type:
+                        res_txt = clients["eproc_auth"].extrair_texto_pdf(pdf_bytes)
+                    else:
+                        res_txt = clients["eproc_auth"].extrair_texto_html(pdf_bytes)
+                    conteudo = res_txt.get("conteudo", "")
+                    if conteudo.strip():
+                        (pecas_dir / f"{nome_base}.txt").write_text(conteudo, encoding="utf-8")
+                    pecas_baixadas.append({
+                        "arquivo": f"peças/{nome_base}.txt" if conteudo.strip() else None,
+                        "arquivo_pdf": f"peças/{nome_base}.pdf" if (pdf_bytes[:4] == b"%PDF") else None,
+                        "evento": doc.get("evento_numero"),
+                        "data": doc.get("evento_data"),
+                        "nome_doc": doc.get("nome", ""),
+                        "tamanho": len(conteudo),
+                        "ocr_usado": res_txt.get("ocr_usado", False),
+                    })
+                except Exception as e:
+                    info["erros"].append(f"peça {nome_base} extração: {e}")
+            log(f"  [tnu] FASE B OK — {sum(1 for p in pecas_baixadas if p.get('tamanho',0)>0)} com texto extraído")
+        else:
+            # Modo público: mantém fluxo antigo (TNU ler_documento já faz tudo de uma vez)
+            for doc in pecas_selecionadas:
+                nome_base = nome_arquivo_peca(doc)
+                try:
+                    log(f"  [tnu] baixa {nome_base}")
+                    res = await clients["tnu"].ler_documento(
+                        doc["doc_id"], doc["evento_id"], doc["key"], doc["hash"],
+                        doc.get("nome", ""),
+                    )
+                    if res.get("erro"):
+                        info["erros"].append(f"peça {nome_base}: {res['erro']}")
+                        continue
+                    (pecas_dir / f"{nome_base}.txt").write_text(res.get("conteudo", ""), encoding="utf-8")
+                    pecas_baixadas.append({
+                        "arquivo": f"peças/{nome_base}.txt",
+                        "arquivo_pdf": None,
+                        "evento": doc.get("evento_numero"),
+                        "data": doc.get("evento_data"),
+                        "nome_doc": doc.get("nome", ""),
+                        "tamanho": res.get("tamanho_caracteres", 0),
+                    })
+                except Exception as e:
+                    info["erros"].append(f"peça {nome_base}: {e}")
+                await asyncio.sleep(0.5)
 
     # 6. Decisões STJ/STF
     stj_salvos: list[dict] = []
@@ -1007,12 +1079,20 @@ def carregar_clients() -> dict:
         spec.loader.exec_module(mod)
         return mod
 
-    return {
+    clients = {
         "sisdpu": _load(MCP_DIR / "sisdpu", "sisdpu_client"),
         "datajud": _load(MCP_DIR / "datajud", "datajud_client"),
         "tnu": _load(MCP_DIR / "tnu", "tnu_client"),
         "stj": _load(MCP_DIR / "stj", "stj_client"),
     }
+    # eproc_auth é módulo local, importa direto
+    if EPROC_PROFILE_DIR.is_dir() and any(EPROC_PROFILE_DIR.iterdir()):
+        try:
+            import eproc_auth_client  # type: ignore
+            clients["eproc_auth"] = eproc_auth_client
+        except Exception as e:
+            print(f"WARN: eproc_auth_client falhou ao importar ({e}) — usando modo público", file=sys.stderr)
+    return clients
 
 
 # ----- main -----
@@ -1025,8 +1105,10 @@ async def run(only: str | None, dry_run: bool) -> int:
     if not env.get("SISDPU_USERNAME") or not env.get("SISDPU_PASSWORD"):
         print(f"ERRO: .env em {ENV_FILE} sem SISDPU_USERNAME/SISDPU_PASSWORD", file=sys.stderr)
         return 1
-    os.environ["SISDPU_USERNAME"] = env["SISDPU_USERNAME"]
-    os.environ["SISDPU_PASSWORD"] = env["SISDPU_PASSWORD"]
+    # Expõe todas as credenciais do .env como env vars (SISDPU_*, EPROC_*, etc)
+    for k, v in env.items():
+        if v:
+            os.environ[k] = v
 
     clients = carregar_clients()
 
@@ -1093,12 +1175,19 @@ async def run(only: str | None, dry_run: bool) -> int:
         await clients["sisdpu"].fechar()
     except Exception:
         pass
+    if "eproc_auth" in clients:
+        try:
+            await clients["eproc_auth"].fechar()
+        except Exception:
+            pass
 
     # Resumo final
     log("=" * 60)
     log(f"FIM: {len(processados)} processados, {len(falhas)} falhas")
     for p in processados:
         log(f"  {p['paj']}  [{p['foro']}]  {p['classificacao']}  peças={p['pecas_baixadas']}  decisoes={p['decisoes_baixadas']}")
+        for e in p.get("erros", []):
+            log(f"    erro: {e[:200]}")
     if falhas:
         log("FALHAS:")
         for f in falhas:
