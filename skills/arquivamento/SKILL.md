@@ -70,6 +70,38 @@ Arquive-se.
 
 **NOTA:** A fundamentação sobre irrecorribilidade perante o STJ (precedentes AgRg na Pet 7.549/PR etc.) também pode ser aproveitada quando a **Turma** (Plenário) da TNU não conhece do recurso, pois o STJ igualmente não admite uniformização nesses casos. Porém, a estrutura e o restante do despacho serão diferentes — usar o Tipo 2 abaixo.
 
+### Tipo 3 — Arquivamento por Vitória
+
+**Aplica-se quando:**
+- Acórdão/decisão favorável ao assistido já transitou em julgado, OU
+- Acordo homologado e integralmente cumprido pela parte contrária, OU
+- Resultado favorável obtido e restando apenas trâmite burocrático (baixa à origem, devolução dos autos) sem qualquer providência jurídica pendente
+
+**Característica distintiva:** NÃO há recurso a combater, prazo a cumprir ou decisão desfavorável. O processo já produziu exatamente o resultado pretendido pela DPU/assistido. O que resta é puramente burocrático.
+
+**Atuação correta da DPU:** Em regra, o Defensor da TNU/STJ não aguarda indefinidamente o trâmite formal de baixa — isso oneraria a caixa com casos já resolvidos. Arquiva-se o PAJ com vitória e remete-se ao Defensor de 1ª categoria atuante na respectiva Turma Recursal (ou 1º grau), que receberá o processo quando efetivamente houver a baixa e tomará as providências cabíveis (execução de custas, habilitação de herdeiros, comunicação ao assistido, etc).
+
+**Distinção com Tipos 1 e 2:**
+- Tipo 1/2 = arquiva-se porque NÃO há como vencer
+- Tipo 3 = arquiva-se porque JÁ se venceu
+
+**Estrutura:**
+1. "Despacho de Arquivamento por Vitória"
+2. Contextualização: processo, partes, assistido, origem, instância atual
+3. Histórico processual resumido — chegando à decisão/acordo favorável
+4. Identificação clara da vitória:
+   - Se acórdão: transcrever dispositivo favorável + data do trânsito em julgado (quando houver)
+   - Se acordo: cláusulas relevantes + comprovação de cumprimento
+5. Constatação de que não há providência jurídica pendente na TNU/STJ — o que resta é trâmite burocrático (baixa, devolução à origem)
+6. Remissão ao Defensor de 1ª categoria atuante na respectiva Turma Recursal (ou, conforme o caso, ao 1º grau) para tomar providências cabíveis quando do retorno dos autos
+7. Registro de que o assistido deve ser informado do resultado favorável
+8. "Comunique-se o assistido do resultado favorável."
+9. "Arquive-se com vitória. Remetam-se os autos ao Defensor de 1ª categoria atuante na [Turma Recursal / Juízo de origem] para as providências cabíveis quando do retorno formal do processo."
+
+**Tom:** técnico, objetivo, mas deixando clara a natureza da vitória — tanto para controle interno quanto para eventual consulta pelo assistido.
+
+**Acompanhamento de trânsito (opcional):** se o trânsito formal ainda não ocorreu mas é questão de tempo, pode-se registrar o PAJ na watchlist de monitoramento automático (ver `/skills/watchlist-transito/SKILL.md` — a ser criada). Isso evita manter o PAJ na caixa ativa sem razão.
+
 ### Tipo 2 — Arquivamento Caso a Caso (TODOS os demais cenários)
 
 **Este tipo abrange TODAS as hipóteses de arquivamento que NÃO sejam decisão monocrática do Presidente da TNU.** Inclui, entre outros: arquivamento em processos do STJ, arquivamento após acórdão desfavorável da TNU, arquivamento por inviabilidade de recurso após decisão do relator, e qualquer outro cenário.

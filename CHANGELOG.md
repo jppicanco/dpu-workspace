@@ -6,6 +6,20 @@ Log de alterações do projeto. Cada entrada registra O QUE mudou, ONDE mudou e 
 
 ---
 
+## [v6.3] — 2026-04-16
+
+### Arquivamento Tipo 3 — por Vitória
+
+**Motivação:** Nos testes do front-end dpuscript-ui (E:\DPU\dpuscript-ui), o Claude classificou erradamente um caso de acordo homologado e cumprido (PAJ Rita, 2018/039-17434) como "despacho de mero expediente" em vez de "arquivamento por vitória". A skill de arquivamento só previa Tipo 1 (irrecorribilidade) e Tipo 2 (inviabilidade de mérito) — faltava o Tipo 3, muito comum na prática.
+
+**Arquivos modificados:**
+- `skills/arquivamento/SKILL.md` — adicionada seção "Tipo 3 — Arquivamento por Vitória" com estrutura, tom, distinção vs Tipos 1/2 e menção opcional a watchlist de trânsito
+- `CLAUDE.md` — contexto operacional atualizado para mencionar 3 tipos de arquivamento
+
+**Rollback:** `git revert HEAD` (duas edições cirúrgicas, aditivas, não removem nada).
+
+---
+
 ## [v6.2] — 2026-03-13
 
 ### Conversor PDF para TXT com OCR seletivo
