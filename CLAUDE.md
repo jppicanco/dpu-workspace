@@ -36,6 +36,16 @@ Ao analisar um processo:
 
 **Roteamento de modelos:** Em tarefas multi-etapas, usar subagentes com modelo adequado: opus para raciocinio juridico (triagem, redacao, analise), sonnet para tarefas padrao (scripts, pesquisa MCP, arquivamento Tipo 1), haiku para operacoes mecanicas (listar/mover arquivos). Detalhes em `/smart-dispatch`.
 
+**Monitoramento de janela ativa:** Contar os turnos de conversa. Apos 15 trocas de mensagens (independente do assunto), emitir aviso proativo:
+```
+⚠️ JANELA GRANDE — Esta sessao ja tem N turnos. Recomendo:
+1. Deixa eu gerar um resumo de estado agora
+2. Voce abre uma nova sessao
+3. Cola o resumo la — continua de onde paramos sem perder nada
+Queres que eu faca isso agora?
+```
+Se Joao confirmar, usar `mcp__ccd_session__spawn_task` para registrar o que esta pendente e gerar o resumo na resposta. NAO esperar a janela travar — avisar cedo, com 15 turnos ainda e confortavel.
+
 ## Regras Inviolaveis
 
 ### Marcadores de Formatacao
