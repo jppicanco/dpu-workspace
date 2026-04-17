@@ -6,7 +6,7 @@ Roda 1x. Abre o navegador VISÍVEL, o JP faz:
   1. Login (usuário + senha) — pode deixar o script preencher ou fazer manual
   2. Código 2FA do app autenticador
   3. **MARCA A CHECKBOX "Não usar o 2FA neste dispositivo e navegador"**
-  4. Seleciona o perfil ASSISTENTE PROCURADOR (ASP83999639334)
+  4. Seleciona o perfil ASSISTENTE PROCURADOR (ASP<SEU_CPF>)
   5. Pressiona ENTER no terminal — script salva a sessão em eproc_state.json
 
 Depois disso, o preparar_pajs.py pode logar silenciosamente reusando esse state,
@@ -60,7 +60,7 @@ async def main():
     print("  2. Campos de login PRÉ-PREENCHIDOS com .env — você só clica Entrar")
     print("  3. Digite o código 2FA do app autenticador quando pedir")
     print("  4. ⚠️  MARQUE a checkbox 'Não usar o 2FA neste dispositivo e navegador'")
-    print(f"  5. Selecione o perfil ASSISTENTE PROCURADOR (ASP83999639334)")
+    print(f"  5. Selecione o perfil ASSISTENTE PROCURADOR (ASP<SEU_CPF>)")
     print("  6. Espere chegar no 'Painel do Procurador'")
     print("  7. Volte aqui e pressione ENTER pra salvar a sessão")
     print()
@@ -120,7 +120,7 @@ async def main():
         print("  [1] Clicar 'Entrar'")
         print("  [2] Digitar código 2FA do app autenticador")
         print("  [3] ⚠️  MARCAR checkbox 'Não usar o 2FA neste dispositivo e navegador'")
-        print("  [4] Selecionar perfil ASSISTENTE PROCURADOR (ASP83999639334)")
+        print("  [4] Selecionar perfil ASSISTENTE PROCURADOR (ASP<SEU_CPF>)")
         print("  [5] Chegar na tela 'Painel do Procurador'")
         print()
         print("Quando estiver no Painel do Procurador, volte aqui.")

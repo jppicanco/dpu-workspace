@@ -34,6 +34,10 @@ Ao analisar um processo:
 
 **Pipeline obrigatorio:** TODA peca recursal deve passar por validacao anti-alucinacao (`/skills/validacao/SKILL.md`) e depois formatacao DOCX (`formatar_peca.py`). Apos gerar DOCX e PDF na `/saida`, copiar ambos para a subpasta de entrada do processo (ex: `Entrada/2026/Marco/`). Comandos e detalhes em `/skills/formatacao-docx/SKILL.md`.
 
+**Formato de saida por tipo de documento — regra obrigatoria:**
+- DESPACHO SISDPU → salvar APENAS como `.txt`. Sera copiado e colado diretamente no campo de movimentacao do SISDPU. Nao gerar DOCX nem PDF.
+- PECA JUDICIAL (recurso, agravo, embargos, memoriais, peticao) → gerar obrigatoriamente DOCX + PDF via `formatar_peca.py`. Nao entregar apenas TXT.
+
 **Roteamento de modelos:** Em tarefas multi-etapas, usar subagentes com modelo adequado: opus para raciocinio juridico (triagem, redacao, analise), sonnet para tarefas padrao (scripts, pesquisa MCP, arquivamento Tipo 1), haiku para operacoes mecanicas (listar/mover arquivos). Detalhes em `/smart-dispatch`.
 
 **Monitoramento de janela ativa:** Contar os turnos de conversa. Apos 15 trocas de mensagens (independente do assunto), emitir aviso proativo:
@@ -64,6 +68,9 @@ Vulnerabilidade e argumento juridico, NAO apelo emocional. Ancorar no diploma pr
 
 ### Estilo
 Prosa continua, sem listas no corpo. Titulos com numeracao romana. Titulos nunca comecam com "de". Foco no concreto — como a decisao afeta renda, saude, moradia do assistido. Redacao natural e autoral.
+
+**Clareza sobre partes e resultado — regra obrigatoria em todo despacho que analisa decisao:**
+Todo despacho que narra uma decisao judicial DEVE deixar inequivoco: (1) quem e o recorrente e quem e o recorrido, (2) em qual polo a DPU/assistido se encontra, (3) quem foi a parte vencedora. Nao basta dizer "deu provimento" — e preciso que o leitor saiba imediatamente se isso e vitoria ou derrota para o assistido. Formulas corretas: "O Ministro deu provimento ao recurso interposto pela DPU em favor da assistida [NOME], resultando em sua vitoria" ou "O INSS era o recorrente; ao dar provimento ao seu recurso, o Tribunal decidiu contra o assistido". Nunca deixar o resultado ambiguo.
 
 ### Skills Futuras
 Quando uma Skill "a ser criada futuramente" for necessaria, oferecer elaborar diretamente na conversa.

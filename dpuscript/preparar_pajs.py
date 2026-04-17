@@ -39,6 +39,9 @@ ENTRADA_DIR = WORKSPACE / "Entrada" / "dpuscript"
 ESTADO_DIR = SCRIPT_DIR / "estado"
 ESTADO_FILE = ESTADO_DIR / "pajs_processados.json"
 LOG_DIR = SCRIPT_DIR / "logs"
+STATE_FILE = LOG_DIR / "state.json"
+_RUN_LOG_HANDLE = None  # arquivo do run atual, setado em run()
+_RUN_STATE = {}          # estado atual da execucao
 ENV_FILE = SCRIPT_DIR / ".env"
 EPROC_PROFILE_DIR = SCRIPT_DIR / "eproc_profile"  # se existir → modo TNU autenticado
 
@@ -120,7 +123,30 @@ def load_env(path: Path) -> dict:
 
 def log(msg: str) -> None:
     ts = datetime.now().strftime("%H:%M:%S")
-    print(f"[{ts}] {msg}", flush=True)
+    line = f"[{ts}] {msg}"
+    print(line, flush=True)
+    # Grava tambem em arquivo, se houver handle aberto
+    if _RUN_LOG_HANDLE is not None:
+        try:
+            _RUN_LOG_HANDLE.write(line + "\n")
+            _RUN_LOG_HANDLE.flush()
+        except Exception:
+            pass
+
+
+def update_state(**kwargs) -> None:
+    """Atualiza o state.json com os campos passados. Mantem os ja existentes."""
+    global _RUN_STATE
+    _RUN_STATE.update(kwargs)
+    _RUN_STATE["atualizado_em"] = datetime.now().isoformat()
+    try:
+        LOG_DIR.mkdir(parents=True, exist_ok=True)
+        STATE_FILE.write_text(
+            json.dumps(_RUN_STATE, ensure_ascii=False, indent=2, default=str),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
 
 
 def normalizar_paj(paj: str) -> str:
@@ -398,6 +424,13 @@ def classificar_caso(
     # 7. Decisão STJ/STF/TNU baixada — olha TEOR da peça, não só SISDPU
     if tem_decisao_baixada:
         blob_analise = (blob_recentes + " " + blob_decisoes).upper()
+        # Provimento TNU/STJ com restituição à origem → VITÓRIA da Categoria Especial
+        # A adequação pelo TR/JEF é responsabilidade da DPU de 1ª Categoria — NÃO aguardar
+        if re.search(r"DOU[\s-]LHE\s+PROVIMENTO|D[AE]RAM?\s+PROVIMENTO|CONHE[CÇ]O\s+E\s+DOU\s+PROVIMENTO",
+                     blob_analise):
+            if re.search(r"RESTITUICAO|RESTITUIÇÃO|RESTITUI[OÃ]\s+DO\s+FEITO|ADEQUA[CÇ][AÃ]O\s+DO\s+JULGADO|RETORNO\s+[AÀ]\s+ORIGEM|DEVOLU[CÇ][AÃ]O\s+[AÀ]\s+ORIGEM",
+                         blob_analise):
+                return "ARQUIVADO_VITORIA_PROVIMENTO"
         # Monocrática desprovida → cabe agravo interno
         if ("MONOCR" in blob_analise or "RELATOR" in blob_analise):
             if re.search(r"DESPROVID[OA]|NEGAR\s+PROVIMENTO|N[ÃA]O\s+CONHECID[OA]|INADMITID[OA]",
@@ -575,6 +608,7 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
     ano, unidade, numero = dec
 
     # 1. SISDPU — movimentacoes_paj (tela Detalhamento com URLs STJ)
+    update_state(subfase="sisdpu_movimentacoes")
     log(f"  [sisdpu] movimentacoes {paj}")
     try:
         det = await clients["sisdpu"].movimentacoes_paj(numero, ano, unidade)
@@ -611,6 +645,7 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
     # 4. DataJud — só pra NÃO-TNU (TNU autenticado já dá mais dados que DataJud)
     datajud_data: dict | None = None
     if cnj_digitos and foro != "TNU":
+        update_state(subfase="datajud", cnj=formatar_cnj(cnj_digitos))
         log(f"  [datajud] {formatar_cnj(cnj_digitos)}")
         try:
             datajud_data = await clients["datajud"].consultar_processo(cnj_digitos)
@@ -630,6 +665,7 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
     pecas_baixadas: list[dict] = []
     if foro in ("TNU",) and cnj_digitos:
         usa_autenticado = EPROC_PROFILE_DIR.is_dir() and any(EPROC_PROFILE_DIR.iterdir())
+        update_state(subfase="tnu_listando_docs", modo_tnu=("autenticado" if usa_autenticado else "publico"))
         log(f"  [tnu] eventos + docs (modo={'AUTENTICADO' if usa_autenticado else 'publico'})")
         try:
             tnu_proc = await clients["tnu"].consultar_processo(formatar_cnj(cnj_digitos))
@@ -670,6 +706,7 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
 
         if usa_autenticado:
             # FASE A: baixa TODOS os PDFs em sequência rápida (sessão curta)
+            update_state(subfase="tnu_baixando_pdfs", total_pecas=len(pecas_selecionadas))
             log(f"  [tnu] FASE A — baixando {len(pecas_selecionadas)} PDFs...")
             docs_baixados = []  # [(doc, nome_base, pdf_bytes, content_type)]
             for doc in pecas_selecionadas:
@@ -692,6 +729,7 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
             log(f"  [tnu] FASE A OK — {len(docs_baixados)} PDFs em disco")
 
             # FASE B: extração de texto local (OCR só pra scans) — sem sessão e-Proc
+            update_state(subfase="tnu_extraindo_texto_ocr")
             log(f"  [tnu] FASE B — extraindo texto (OCR só quando necessário)...")
             for doc, nome_base, pdf_bytes, content_type in docs_baixados:
                 try:
@@ -754,6 +792,7 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
             urls_decisoes.append(m.group(0))
     urls_decisoes = list(dict.fromkeys(urls_decisoes))[:8]
     for url in urls_decisoes:
+        update_state(subfase="baixando_decisao_superior")
         log(f"  [decisao] {url[:80]}")
         try:
             if "stj.jus.br" in url:
@@ -1101,17 +1140,38 @@ async def run(only: str | None, dry_run: bool) -> int:
     ENTRADA_DIR.mkdir(parents=True, exist_ok=True)
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
+    # Abre log file pra essa execucao
+    global _RUN_LOG_HANDLE
+    run_start = datetime.now()
+    run_log_path = LOG_DIR / f"run_{run_start.strftime('%Y-%m-%d_%H%M%S')}.log"
+    try:
+        _RUN_LOG_HANDLE = open(run_log_path, "w", encoding="utf-8")
+    except Exception:
+        _RUN_LOG_HANDLE = None
+
+    update_state(
+        status="iniciando",
+        iniciado_em=run_start.isoformat(),
+        log_file=str(run_log_path),
+        only=only,
+        dry_run=dry_run,
+        fase="carregando_env",
+    )
+
     env = load_env(ENV_FILE)
     if not env.get("SISDPU_USERNAME") or not env.get("SISDPU_PASSWORD"):
         print(f"ERRO: .env em {ENV_FILE} sem SISDPU_USERNAME/SISDPU_PASSWORD", file=sys.stderr)
+        update_state(status="erro", erro="SISDPU credenciais ausentes")
         return 1
     # Expõe todas as credenciais do .env como env vars (SISDPU_*, EPROC_*, etc)
     for k, v in env.items():
         if v:
             os.environ[k] = v
 
+    update_state(fase="carregando_clients")
     clients = carregar_clients()
 
+    update_state(status="rodando", fase="baixando_caixa_sisdpu", paj_atual=None)
     log("baixando caixa SISDPU")
     try:
         result = await clients["sisdpu"].caixa_de_entrada()
@@ -1151,11 +1211,24 @@ async def run(only: str | None, dry_run: bool) -> int:
 
     processados: list[dict] = []
     falhas: list[dict] = []
+    update_state(
+        total_pajs=len(alvos),
+        processados=0,
+        falhas_count=0,
+        fase="processando_pajs",
+    )
     for i, alvo in enumerate(alvos, 1):
         log(f"[{i}/{len(alvos)}] {alvo['paj']} ({alvo['classe']})")
+        update_state(
+            paj_atual=alvo["paj"],
+            paj_index=i,
+            paj_classe=alvo["classe"],
+            fase="processando_paj",
+        )
         try:
             info = await processar_paj(alvo, clients)
             processados.append(info)
+            update_state(processados=len(processados), falhas_count=len(falhas))
             estado["pajs"][alvo["paj"]] = {
                 "mov_hash": alvo["mov_hash"],
                 "ultima_mov_data": alvo.get("data", ""),
@@ -1182,6 +1255,14 @@ async def run(only: str | None, dry_run: bool) -> int:
             pass
 
     # Resumo final
+    update_state(
+        status="concluido",
+        fase="fim",
+        paj_atual=None,
+        finalizado_em=datetime.now().isoformat(),
+        processados=len(processados),
+        falhas_count=len(falhas),
+    )
     log("=" * 60)
     log(f"FIM: {len(processados)} processados, {len(falhas)} falhas")
     for p in processados:

@@ -7,7 +7,7 @@ Regras:
 1. Se eproc_state.json não existe → instrui rodar setup_eproc.py e aborta.
 2. Se state existe mas expirou → mesmo comportamento (não tenta brute-force).
 3. Playwright carrega o state → sessão autenticada sem pedir 2FA.
-4. Se dropdown de perfil aparecer (pouco provável reusando state), exige ASP83999639334.
+4. Se dropdown de perfil aparecer (pouco provável reusando state), exige o perfil configurado em EPROC_PERFIL no .env (ex: ASP<SEU_CPF>).
 5. Log de auditoria em dpuscript/logs/eproc-auth.log
 """
 
@@ -25,7 +25,7 @@ from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 
 EPROC_BASE = "https://eproctnu.cjf.jus.br/eproc"
 EPROC_PAINEL_URL = f"{EPROC_BASE}/controlador.php?acao=painel_assistente_procurador_listar&acao_origem=principal"
-PERFIL_ASSISTENTE = "ASP83999639334"
+PERFIL_ASSISTENTE = os.environ.get("EPROC_PERFIL", "")  # ex: ASP<SEU_CPF> — definir no .env
 
 TIMEOUT_NAV = 30000
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -647,11 +647,20 @@ async def baixar_pdf_bytes(doc: dict) -> dict:
         return {"bytes": b"", "content_type": "", "erro": str(e)[:200]}
 
 
+def _encoding_quebrado(texto: str, threshold: float = 0.04) -> bool:
+    """True se >4% dos caracteres alfanuméricos são '?' — sinal de CMap corrompido."""
+    if not texto:
+        return False
+    alfa = sum(1 for c in texto if c.isalpha())
+    return alfa > 0 and (texto.count("?") / alfa) > threshold
+
+
 def extrair_texto_pdf(pdf_bytes: bytes) -> dict:
     """Fase B (local, sem sessão): extrai texto do PDF.
 
-    Tenta PyMuPDF primeiro (~0.1s). Se vazio (PDF scan/imagem), roda
-    Tesseract OCR em português. Retorna {conteudo: str, ocr_usado: bool, erro: str|None}.
+    Tenta PyMuPDF primeiro (~0.1s). Se vazio (PDF scan/imagem) OU se o texto
+    tiver encoding corrompido (muitos '?' — CMap inválido), roda Tesseract OCR
+    em português. Retorna {conteudo: str, ocr_usado: bool, erro: str|None}.
     """
     try:
         import fitz
@@ -663,14 +672,15 @@ def extrair_texto_pdf(pdf_bytes: bytes) -> dict:
                 paginas.append(t)
         texto = "\n\n".join(paginas)
 
-        if not texto.strip():
-            # PDF scan — roda OCR
-            _log("OCR_ACIONADO pdf sem texto extraivel")
+        if not texto.strip() or _encoding_quebrado(texto):
+            motivo = "pdf sem texto extraivel" if not texto.strip() else "encoding corrompido (CMap invalido)"
+            _log(f"OCR_ACIONADO {motivo}")
             texto_ocr = _ocr_pdf_fitz(pdf_doc)
             pdf_doc.close()
             if texto_ocr.strip():
                 return {"conteudo": texto_ocr, "ocr_usado": True, "erro": None}
-            return {"conteudo": "", "ocr_usado": True, "erro": "PDF scan sem texto OCR"}
+            # OCR também falhou — devolve o texto original mesmo que corrompido
+            return {"conteudo": texto, "ocr_usado": True, "erro": f"OCR sem resultado ({motivo})"}
 
         pdf_doc.close()
         return {"conteudo": texto, "ocr_usado": False, "erro": None}

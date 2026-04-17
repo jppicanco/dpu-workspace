@@ -75,7 +75,16 @@ Arquive-se.
 **Aplica-se quando:**
 - Acórdão/decisão favorável ao assistido já transitou em julgado, OU
 - Acordo homologado e integralmente cumprido pela parte contrária, OU
-- Resultado favorável obtido e restando apenas trâmite burocrático (baixa à origem, devolução dos autos) sem qualquer providência jurídica pendente
+- Resultado favorável obtido e restando apenas trâmite burocrático (baixa à origem, devolução dos autos) sem qualquer providência jurídica pendente, OU
+- **TNU dá provimento ao incidente e determina restituição à Turma Recursal de origem para adequação** (ver regra abaixo)
+
+**REGRA CRÍTICA — TNU dando provimento com restituição à origem:**
+Quando a TNU (monocrática ou colegiada) dá provimento ao incidente de uniformização e determina a restituição do feito à Turma Recursal de origem para "adequação do julgado", isso é **VITÓRIA e ENCERRAMENTO da atuação da Categoria Especial**.
+
+- A Categoria Especial (TNU/STJ) NÃO acompanha, NÃO aguarda e NÃO recebe intimação da Turma Recursal — isso é instância de 2ª Categoria
+- A adequação pelo TR/JEF é responsabilidade exclusiva da DPU de 1ª Categoria que atuou na origem
+- **NUNCA escrever:** "aguardar intimação da Turma Recursal", "acompanhar adequação", "avaliar manifestação quando do julgamento da TR"
+- **Ação correta:** Arquivar com vitória + encaminhar ao setor COMUNICAÇÃO para rotear à DPU 1ª Categoria de origem
 
 **Característica distintiva:** NÃO há recurso a combater, prazo a cumprir ou decisão desfavorável. O processo já produziu exatamente o resultado pretendido pela DPU/assistido. O que resta é puramente burocrático.
 
@@ -87,9 +96,9 @@ Arquive-se.
 
 **Estrutura:**
 1. "Despacho de Arquivamento por Vitória"
-2. Contextualização: processo, partes, assistido, origem, instância atual
+2. Contextualização: processo, partes, assistido, origem, instância atual — **identificar explicitamente em qual polo a DPU/assistido figura (recorrente ou recorrido) e quem é a parte contrária**
 3. Histórico processual resumido — chegando à decisão/acordo favorável
-4. Identificação clara da vitória:
+4. Identificação clara da vitória — **nunca dizer apenas "deu provimento": explicar que o provimento foi dado AO RECURSO DA DPU / DO ASSISTIDO, tornando inequívoco que isso representa vitória para o assistido. Se o recurso foi da parte contrária e foi negado, deixar igualmente claro.**
    - Se acórdão: transcrever dispositivo favorável + data do trânsito em julgado (quando houver)
    - Se acordo: cláusulas relevantes + comprovação de cumprimento
 5. Constatação de que não há providência jurídica pendente na TNU/STJ — o que resta é trâmite burocrático (baixa, devolução à origem)
@@ -98,7 +107,13 @@ Arquive-se.
 8. "Comunique-se o assistido do resultado favorável."
 9. "Arquive-se com vitória. Remetam-se os autos ao Defensor de 1ª categoria atuante na [Turma Recursal / Juízo de origem] para as providências cabíveis quando do retorno formal do processo."
 
-**Tom:** técnico, objetivo, mas deixando clara a natureza da vitória — tanto para controle interno quanto para eventual consulta pelo assistido.
+**Tom:** técnico, objetivo, mas deixando clara a natureza da vitória.
+
+**Regra: NÃO explicar no despacho a divisão de competências entre categorias da DPU.** Todo defensor sabe disso. Frases como "a atuação desta Defensoria de Categoria Especial, restrita aos Tribunais Superiores..." são desnecessárias e poluem o despacho. Basta encaminhar ao setor COMUNICAÇÃO para as providências — o destinatário entende.
+
+**Regra crítica — comunicação ao assistido:**
+- **NÃO comunicar "vitória"** quando o processo retorna a outra instância para adequação (ex: TNU dá provimento e devolve à TR). O assistido leigo vai interpretar que ganhou o pedido principal, quando na verdade o que houve foi apenas a uniformização da tese — o resultado concreto (concessão do benefício, por exemplo) depende ainda da adequação pela TR. Comunicação prematura gera confusão e falsas expectativas.
+- **COMUNICAR obrigatoriamente** quando o processo se encerra definitivamente na TNU/STJ — seja vitória (acórdão favorável transitado, provimento que não volta a nenhuma instância) ou derrota (recursos esgotados, sem mais providências cabíveis). Nesse caso não há mais etapas: o assistido precisa saber do resultado final.
 
 **Acompanhamento de trânsito (opcional):** se o trânsito formal ainda não ocorreu mas é questão de tempo, pode-se registrar o PAJ na watchlist de monitoramento automático (ver `/skills/watchlist-transito/SKILL.md` — a ser criada). Isso evita manter o PAJ na caixa ativa sem razão.
 
@@ -134,10 +149,30 @@ Arquive-se.
 - Tom objetivo, técnico e respeitoso — é despacho administrativo, mas com qualidade de peça jurídica
 - A redação deve ser clara o suficiente para que o assistido (ou seu eventual advogado futuro) compreenda as razões
 
-## Formatação
+## Formatação — Regras Obrigatórias para Despacho no SISDPU
+
+**O que NÃO incluir — o SISDPU já tem essas informações:**
+- NÃO repetir número do PAJ, nome do assistido ou número do processo no corpo do despacho (estão no sistema)
+- NÃO colocar data ao final
+- NÃO colocar nome do Defensor ao final
+- NÃO colocar cargo ("Defensor Público Federal") ao final
+- NÃO colocar ofício ao final
+- NÃO incluir cabeçalho institucional
+
+**Estrutura correta:**
+```
+DESPACHO DE ARQUIVAMENTO [POR VITÓRIA / sem complemento]
+
+[Corpo do despacho em prosa]
+
+Comunique-se [quando cabível]. Arquive-se.
+```
+
+**Sobre agravo regimental em decisão monocrática do Presidente da TNU:**
+O art. 15, §1º, do RITNU é expresso: "Das decisões monocráticas do Presidente não caberá recurso." O único recurso em tese admissível é embargos de declaração. NUNCA mencionar agravo regimental como recurso cabível contra monocrática do Presidente da TNU — isso é factualmente errado.
+
 - Usar os marcadores de formatação padrão do sistema (`##`, `###`, `>`) para que o DOCX saia com negritos, parágrafos e hierarquia visual correta
-- Salvar o .txt intermediário em `/saida` e **executar o CHECKPOINT 2** para gerar o DOCX final
-- NÃO incluir cabeçalho institucional (será inserido no sistema da DPU)
+- Salvar o .txt intermediário na subpasta de entrada do processo
 - Usar `--tipo-peca despacho` no formatar_peca.py
 
 ## Pipeline Completo para Arquivamento
