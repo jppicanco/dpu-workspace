@@ -6,6 +6,19 @@ Log de alterações do projeto. Cada entrada registra O QUE mudou, ONDE mudou e 
 
 ---
 
+## [v6.4] — 2026-04-30
+
+### Politica de Custo x Beneficio (MAX) consolidada no CLAUDE.md
+
+**Motivacao:** Joao reportou estouro recorrente de quota no plano MAX. A regra de roteamento existente no CLAUDE.md era curta demais e nao orientava qual modelo usar como sessao principal nem em que momento subir para Opus. Sem default explicito, o assistente tendia a manter Opus o tempo todo, queimando cota em tarefas mecanicas.
+
+**Arquivos modificados:**
+- `CLAUDE.md` — substituida a linha unica "Roteamento de modelos" por secao completa "Politica de Custo x Beneficio (MAX)" cobrindo: (1) modelo default da sessao = Sonnet 4.6; (2) lista explicita de quando subir para Opus 4.7 e quando ficar em Sonnet; (3) roteamento via subagentes com mapeamento opus/sonnet/haiku; (4) disciplina de contexto (uma sessao por processo, apontar arquivos especificos, pre-converter PDFs avulsos, nao reler PDF se TXT existe).
+
+**Rollback:** `git revert HEAD` — alteracao aditiva e cirurgica, nao remove regras anteriores.
+
+---
+
 ## [v6.3] — 2026-04-16
 
 ### Arquivamento Tipo 3 — por Vitória

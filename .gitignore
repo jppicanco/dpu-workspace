@@ -41,6 +41,7 @@ D*memoriais_original.txt
 dpuscript/.env
 dpuscript/eproc_state.json
 dpuscript/eproc_profile/
+dpuscript/sisdpu_profile/
 dpuscript/logs/
 dpuscript/estado/
 dpuscript/watchlist.json

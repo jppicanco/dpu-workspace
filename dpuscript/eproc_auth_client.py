@@ -346,7 +346,15 @@ async def garantir_logado() -> Page:
     await page.fill("#pwdSenha", senha)
 
     # Registra handler pra dialogs (caso "Definir usuário padrão" dispare)
-    page.on("dialog", lambda d: asyncio.create_task(d.accept()))
+    # Guard: page.on acumula handlers a cada chamada — registra só uma vez por page
+    if not getattr(page, "_dialog_handler_ok", False):
+        async def _safe_accept(d):
+            try:
+                await d.accept()
+            except Exception:
+                pass
+        page.on("dialog", lambda d: asyncio.create_task(_safe_accept(d)))
+        page._dialog_handler_ok = True
 
     await page.click("#sbmEntrar")
 
