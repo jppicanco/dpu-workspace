@@ -469,6 +469,23 @@ def classificar_caso(
     ultimas = sorted(movs_todas, key=_seq_int, reverse=True)[:2]
     blob_recentes = " ".join((m.get("descricao") or "") for m in ultimas).upper()
 
+    # 0. Memory de aprendizado — regras aprendidas com feedback do JP têm
+    # PRIORIDADE sobre regras default. Quando JP corrige uma classificação,
+    # vira regra aqui e aplica-se a casos similares no futuro.
+    try:
+        from memory.aprendizado import aplicar_regras_aprendidas
+        _blob_decisoes_pre = " ".join(conteudos_baixados or []).upper()
+        classif_apr, regra_apr = aplicar_regras_aprendidas(
+            blob_decisao=_blob_decisoes_pre,
+            desc_caixa=desc_caixa,
+            blob_recentes=blob_recentes,
+        )
+        if classif_apr:
+            return classif_apr
+    except Exception:
+        # Se memory falha, segue regras default (não bloqueia pipeline)
+        pass
+
     # Conteúdo das peças/decisões baixadas (teor real — onde o despacho diz "Abra-se vista", etc)
     blob_decisoes = " ".join(conteudos_baixados or []).upper()
 
