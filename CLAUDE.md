@@ -34,11 +34,48 @@ Ao analisar um processo:
    - MEMORIAIS: `/skills/elaboracao/memoriais/SKILL.md`
    - VIABILIDADE DUVIDOSA: apresentar analise, aguardar decisao
 
-**Pipeline obrigatorio:** TODA peca recursal deve passar por validacao anti-alucinacao (`/skills/validacao/anti-alucinacao/SKILL.md`) e depois formatacao DOCX (`formatar_peca.py`). Apos gerar DOCX e PDF na `/saida`, copiar ambos para a subpasta de entrada do processo (ex: `Entrada/2026/Marco/`). Comandos e detalhes em `/skills/_shared/formatacao-docx/SKILL.md`.
+**Pipeline obrigatorio:**
 
-**Formato de saida por tipo de documento — regra obrigatoria:**
-- DESPACHO SISDPU → salvar APENAS como `.txt`. Sera copiado e colado diretamente no campo de movimentacao do SISDPU. Nao gerar DOCX nem PDF.
-- PECA JUDICIAL (recurso, agravo, embargos, memoriais, peticao) → gerar obrigatoriamente DOCX + PDF via `formatar_peca.py`. Nao entregar apenas TXT.
+```
+1. Sistema entrega pacote ao Claude:
+   - Tipo de decisao (COLEGIADA / MONOCRATICA_RELATOR / MONOCRATICA_PRESIDENTE / etc)
+   - Pecas do processo + decisao recorrida
+   - Regimentos aplicaveis (RITNU/RISTJ)
+   - Contexto do caso (assistido, vulnerabilidade)
+   - NAO inclui: template, exemplo de formato
+
+2. Claude estuda o caso e decide:
+   - Tipo de atuacao: RECURSO / DESPACHO INTERNO / ARQUIVAMENTO
+   - Se RECURSO: qual cabe (ED / agravo interno / REsp / RE / etc) — estudo caso a caso
+   - Escreve texto seco
+
+3. JP revisa o texto.
+
+4. Validacao anti-alucinacao (obrigatoria se houver citacao):
+   - `/skills/validacao/anti-alucinacao/SKILL.md`
+
+5. APENAS para PECA JUDICIAL: aplicar template + gerar DOCX/PDF:
+   - `/skills/_shared/formatacao-docx/SKILL.md` (`formatar_peca.py`)
+   - Template institucional DPU (Quattrocento Sans, cabecalho/rodape)
+   - Copiar DOCX+PDF para subpasta de entrada do processo
+
+6. Para DESPACHO SISDPU: texto seco apenas (sem template, sem DOCX/PDF).
+```
+
+**Formato de saida por tipo:**
+- DESPACHO SISDPU (acompanhamento, ciencia, andamento, arquivamento administrativo) → APENAS `.txt` para copy-paste no SIS. **Sem template, sem DOCX, sem PDF.**
+- PECA JUDICIAL (recurso, agravo, embargos, memoriais, peticao protocolada) → texto seco PRIMEIRO, depois template + DOCX + PDF via `formatar_peca.py`.
+
+**Importante sobre classificacao automatica:**
+O sistema (`classificar_caso`) identifica o TIPO DE DECISAO mas NAO sugere qual recurso cabe. Isso e estudo caso a caso do Claude/JP. Classes existentes:
+- `DECISAO_MONOCRATICA_RELATOR_TNU/STJ` — Relator decidiu sozinho
+- `DECISAO_MONOCRATICA_PRESIDENTE_TNU/STJ` — Presidente decidiu sozinho
+- `DECISAO_COLEGIADA_TNU/STJ` — Turma julgou em sessao
+- `DECISAO_COLEGIADA_TNU_PROVIMENTO` — Turma proveu (favoravel)
+- `ARQUIVADO_VITORIA_PROVIMENTO` — Vitoria com restituicao a origem
+- `AGUARDA_JULGAMENTO_*` / `INCLUSAO_EM_PAUTA` — sem decisao ainda
+
+Cabimento de recurso varia (ED, agravo interno, REsp, RE, etc.) e exige analise caso a caso. **Nao generalizar.**
 
 ## Politica de Custo x Beneficio (MAX)
 

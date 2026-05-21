@@ -567,9 +567,9 @@ def classificar_caso(
         if sinal_colegiado:
             if sinal_desprovido:
                 if foro == "TNU":
-                    return "DECISAO_COLEGIADA_TNU_ED_CABIVEL"
+                    return "DECISAO_COLEGIADA_TNU"
                 if foro == "STJ":
-                    return "DECISAO_COLEGIADA_STJ_ED_CABIVEL"
+                    return "DECISAO_COLEGIADA_STJ"
             if sinal_provimento:
                 # provimento sem restituição — favorável mas com adequação pendente
                 if foro == "TNU":
@@ -580,17 +580,17 @@ def classificar_caso(
         # 7.3 — Decisão MONOCRÁTICA do PRESIDENTE/VICE — IRRECORRÍVEL na maioria dos casos
         if sinal_monocratica and sinal_presidente:
             if foro == "TNU":
-                return "DECISAO_PRESIDENTE_TNU_IRRECORRIVEL"
+                return "DECISAO_MONOCRATICA_PRESIDENTE_TNU"
             if foro == "STJ":
-                return "DECISAO_PRESIDENTE_STJ_IRRECORRIVEL"
+                return "DECISAO_MONOCRATICA_PRESIDENTE_STJ"
 
         # 7.4 — Decisão MONOCRÁTICA do Relator desprovida → cabe agravo interno
         # (removido "RELATOR" como gatilho — todo acórdão menciona)
         if sinal_monocratica and sinal_desprovido and not sinal_presidente:
             if foro == "STJ":
-                return "DECISAO_MONOCRATICA_STJ_AGRAVAVEL"
+                return "DECISAO_MONOCRATICA_RELATOR_STJ"
             if foro == "TNU":
-                return "DECISAO_MONOCRATICA_TNU_AGRAVAVEL"
+                return "DECISAO_MONOCRATICA_RELATOR_TNU"
         # Colegiada negando provimento → ED cabem
         if re.search(r"POR\s+UNANIMIDADE.*(?:DESPROVID|NEGAR\s+PROVIMENTO)|"
                      r"CONHECER\s+E\s+NEGAR\s+PROVIMENTO", blob_analise):
