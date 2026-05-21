@@ -26,6 +26,7 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -36,6 +37,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 MCP_DIR = SCRIPT_DIR / "mcp_servers"
 WORKSPACE = SCRIPT_DIR.parent
 ENTRADA_DIR = WORKSPACE / "Entrada" / "dpuscript"
+ARQUIVADOS_DIR = WORKSPACE / "Entrada" / "dpuscript_arquivados"
 ESTADO_DIR = SCRIPT_DIR / "estado"
 ESTADO_FILE = ESTADO_DIR / "pajs_processados.json"
 LOG_DIR = SCRIPT_DIR / "logs"
@@ -245,6 +247,96 @@ def carregar_estado() -> dict:
 def salvar_estado(estado: dict) -> None:
     ESTADO_FILE.parent.mkdir(parents=True, exist_ok=True)
     ESTADO_FILE.write_text(json.dumps(estado, indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def reconciliar_caixa(
+    estado: dict,
+    itens_caixa: list[dict],
+    dry_run: bool = False,
+) -> dict:
+    """Identifica PAJs órfãos (registrados em estado mas FORA da caixa SISDPU real)
+    e move suas pastas pra ARQUIVADOS_DIR.
+
+    PAJ órfão = JP concluiu no SISDPU → saiu da caixa → mas pasta local permanece.
+
+    Args:
+        estado: dict com chave "pajs" (PAJs ativos atualmente acompanhados)
+        itens_caixa: lista de itens parseados da caixa (cada um com chave "paj")
+        dry_run: se True, só lista o que seria movido, não move nada
+
+    Returns:
+        dict com:
+            - 'orfaos': lista de PAJs órfãos detectados
+            - 'arquivados': lista de PAJs efetivamente movidos
+            - 'mantidos': PAJs no estado que continuam na caixa
+            - 'erros': lista de erros (paj + motivo)
+    """
+    pajs_caixa = {it["paj"] for it in itens_caixa}
+    pajs_estado = set(estado.get("pajs", {}).keys())
+    orfaos = sorted(pajs_estado - pajs_caixa)
+    mantidos = sorted(pajs_estado & pajs_caixa)
+
+    arquivados: list[str] = []
+    erros: list[dict] = []
+
+    if not orfaos:
+        log(f"reconciliação: 0 PAJs órfãos ({len(mantidos)} mantidos)")
+        return {
+            "orfaos": [],
+            "arquivados": [],
+            "mantidos": mantidos,
+            "erros": [],
+        }
+
+    log(f"reconciliação: {len(orfaos)} órfãos detectados ({len(mantidos)} mantidos)")
+    timestamp = datetime.now(timezone.utc).astimezone().isoformat()
+
+    for paj in orfaos:
+        paj_norm = normalizar_paj(paj)
+        pasta_origem = ENTRADA_DIR / paj_norm
+        pasta_destino = ARQUIVADOS_DIR / paj_norm
+
+        if dry_run:
+            existe = "exists" if pasta_origem.exists() else "missing"
+            log(f"  [DRY] {paj}: {pasta_origem} ({existe}) -> {pasta_destino}")
+            arquivados.append(paj)
+            continue
+
+        # Move pasta física se existir
+        if pasta_origem.exists():
+            try:
+                ARQUIVADOS_DIR.mkdir(parents=True, exist_ok=True)
+                if pasta_destino.exists():
+                    # Já existe destino — adiciona sufixo timestamp pra não sobrescrever
+                    pasta_destino = pasta_destino.with_name(
+                        pasta_destino.name + "_" + timestamp[:10].replace("-", "")
+                    )
+                shutil.move(str(pasta_origem), str(pasta_destino))
+                log(f"  arquivado: {paj} -> {pasta_destino.name}")
+            except Exception as e:
+                log(f"  ERRO ao mover {paj}: {e}")
+                erros.append({"paj": paj, "erro": str(e)})
+                continue
+        else:
+            log(f"  marcado arquivado (pasta inexistente): {paj}")
+
+        # Move entrada do estado pra pajs_arquivados
+        reg = estado["pajs"].pop(paj, {})
+        reg["arquivado_em"] = timestamp
+        reg["arquivado_motivo"] = "fora_da_caixa_sisdpu"
+        estado.setdefault("pajs_arquivados", {})[paj] = reg
+        arquivados.append(paj)
+
+    if not dry_run and arquivados:
+        salvar_estado(estado)
+        log(f"reconciliação: {len(arquivados)} arquivados, {len(mantidos)} mantidos")
+
+    return {
+        "orfaos": orfaos,
+        "arquivados": arquivados,
+        "mantidos": mantidos,
+        "erros": erros,
+    }
 
 
 def classificar_paj_estado(paj: str, mov_hash: str, estado: dict) -> str:
@@ -1193,6 +1285,21 @@ async def run(only: str | None, dry_run: bool) -> int:
         log(f"--only {only}: {len(itens)} item(ns)")
 
     estado = carregar_estado()
+
+    # Reconciliação: remove PAJs que saíram da caixa SISDPU real (concluídos pelo JP)
+    # Skip se --only (foco em PAJ específico) ou se flag desativada
+    if not only and not getattr(run, "_no_reconciliar", False):
+        update_state(fase="reconciliando_caixa")
+        recon = reconciliar_caixa(estado, itens, dry_run=dry_run)
+        update_state(
+            reconciliacao_orfaos=len(recon["orfaos"]),
+            reconciliacao_arquivados=len(recon["arquivados"]),
+            reconciliacao_mantidos=len(recon["mantidos"]),
+        )
+        if getattr(run, "_reconciliar_apenas", False):
+            log("--reconciliar-apenas: encerrando após reconciliação")
+            return 0
+
     alvos = []
     pulados = 0
     for it in itens:
@@ -1281,7 +1388,20 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="dpuscript — prepara pastas de PAJs")
     parser.add_argument("--only", help="Processar apenas este PAJ (ex: 2021/039-18791)")
     parser.add_argument("--dry-run", action="store_true", help="Lista alvos sem processar")
+    parser.add_argument(
+        "--reconciliar-apenas",
+        action="store_true",
+        help="Roda só reconciliação (move PAJs órfãos pra arquivados) e sai",
+    )
+    parser.add_argument(
+        "--no-reconciliar",
+        action="store_true",
+        help="Pula reconciliação (não move PAJs órfãos)",
+    )
     args = parser.parse_args()
+    # Flags persistidas no objeto run pra serem lidas dentro da coroutine
+    run._reconciliar_apenas = args.reconciliar_apenas
+    run._no_reconciliar = args.no_reconciliar
     try:
         return asyncio.run(asyncio.wait_for(run(args.only, args.dry_run), timeout=TIMEOUT_TOTAL_SEG))
     except asyncio.TimeoutError:

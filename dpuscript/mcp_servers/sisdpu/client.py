@@ -79,7 +79,13 @@ async def _login():
     await page.fill(_sel("frmLogin:epaj_input_usuario"), SISDPU_USER)
     await page.fill(_sel("frmLogin:epaj_input_senha"), SISDPU_PASS)
     await page.evaluate('PrimeFaces.ab({s:"frmLogin:loginButton",f:"frmLogin"})')
-    await page.wait_for_url("**/caixaEntrada**", timeout=15000)
+    # Polling robusto — wait_for_url tem comportamento erratico com PrimeFaces
+    for _ in range(60):
+        await page.wait_for_timeout(1000)
+        if 'caixaEntrada' in page.url or 'caixaentrada' in page.url:
+            break
+    else:
+        raise TimeoutError('Login timeout: URL nunca chegou em caixaEntrada apos 60s')
 
 
 async def _ensure_logged_in():
