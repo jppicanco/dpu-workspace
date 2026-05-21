@@ -518,21 +518,79 @@ def classificar_caso(
     # 7. Decisão STJ/STF/TNU baixada — olha TEOR da peça, não só SISDPU
     if tem_decisao_baixada:
         blob_analise = (blob_recentes + " " + blob_decisoes).upper()
-        # Provimento TNU/STJ com restituição à origem → VITÓRIA da Categoria Especial
-        # A adequação pelo TR/JEF é responsabilidade da DPU de 1ª Categoria — NÃO aguardar
-        if re.search(r"DOU[\s-]LHE\s+PROVIMENTO|D[AE]RAM?\s+PROVIMENTO|CONHE[CÇ]O\s+E\s+DOU\s+PROVIMENTO",
-                     blob_analise):
-            if re.search(r"RESTITUICAO|RESTITUIÇÃO|RESTITUI[OÃ]\s+DO\s+FEITO|ADEQUA[CÇ][AÃ]O\s+DO\s+JULGADO|RETORNO\s+[AÀ]\s+ORIGEM|DEVOLU[CÇ][AÃ]O\s+[AÀ]\s+ORIGEM",
-                         blob_analise):
-                return "ARQUIVADO_VITORIA_PROVIMENTO"
-        # Monocrática desprovida → cabe agravo interno
-        if ("MONOCR" in blob_analise or "RELATOR" in blob_analise):
-            if re.search(r"DESPROVID[OA]|NEGAR\s+PROVIMENTO|N[ÃA]O\s+CONHECID[OA]|INADMITID[OA]",
-                         blob_analise):
-                if foro == "STJ":
-                    return "DECISAO_MONOCRATICA_STJ_AGRAVAVEL"
+
+        # Sinais estruturais
+        sinal_colegiado = bool(re.search(
+            r"POR\s+UNANIMIDADE|POR\s+MAIORIA|"
+            r"A\s+TURMA\s+(?:NACIONAL\s+)?(?:DE\s+UNIFORMIZA[CÇ][AÃ]O\s+)?DECIDIU|"
+            r"A\s+TURMA\s+(?:RECURSAL\s+)?DECIDIU|"
+            r"VOTARAM\s+OS\s+(?:E\.|EXC|EMINENTES)|"
+            r"ACORD(?:AM|AO)\s+OS\s+(?:E\.|EXC|MINISTROS|JUIZES|JU[ÍI]ZES|DESEMBARGADORES)",
+            blob_analise,
+        ))
+        sinal_presidente = bool(re.search(
+            r"PRESIDENTE\s+(?:D[OA]\s+)?(?:TURMA(?:\s+NACIONAL)?|TNU|STJ|TRIBUNAL)|"
+            r"VICE[\s-]*PRESIDENTE|"
+            r"DESPACHO\s+PRESIDENCIAL",
+            blob_analise,
+        ))
+        sinal_monocratica = bool(re.search(
+            r"DECIS[AÃ]O\s+MONOCR[AÁ]TICA|MONOCRATICAMENTE|DECID[OE]?\s+MONOCRAT|"
+            r"RELATOR\s+DECIDE\s+MONOCRAT|DESPACHO\s+MONOCR[AÁ]TICO",
+            blob_analise,
+        ))
+        sinal_desprovido = bool(re.search(
+            r"DESPROVID[OA]|NEGAR\s+PROVIMENTO|N[ÃA]O\s+CONHECER|"
+            r"N[ÃA]O\s+CONHECID[OA]|INADMITID[OA]|"
+            r"PEDIDO\s+(?:DE\s+UNIFORMIZA[CÇ][AÃ]O\s+)?(?:N[AÃ]O\s+CONHECIDO|INADMITIDO)",
+            blob_analise,
+        ))
+        sinal_provimento = bool(re.search(
+            r"DOU[\s-]LHE\s+PROVIMENTO|D[AE]RAM?\s+PROVIMENTO|"
+            r"CONHE[CÇ]O\s+E\s+DOU\s+PROVIMENTO|PEDIDO\s+CONHECIDO\s+E\s+PROVIDO",
+            blob_analise,
+        ))
+
+        # 7.1 — Provimento TNU/STJ com restituição à origem → VITÓRIA Cat. Especial
+        # Adequação pelo TR/JEF é responsabilidade da DPU 1ª Categoria — NÃO aguardar
+        if sinal_provimento and re.search(
+            r"RESTITUICAO|RESTITUIÇÃO|RESTITUI[OÃ]\s+DO\s+FEITO|"
+            r"ADEQUA[CÇ][AÃ]O\s+DO\s+JULGADO|RETORNO\s+[AÀ]\s+ORIGEM|"
+            r"DEVOLU[CÇ][AÃ]O\s+[AÀ]\s+ORIGEM",
+            blob_analise,
+        ):
+            return "ARQUIVADO_VITORIA_PROVIMENTO"
+
+        # 7.2 — Decisão COLEGIADA (turma julgou) — cabe SÓ embargos de declaração
+        # se houver omissão/contradição/obscuridade. NÃO cabe agravo interno.
+        # (Esta regra resolve o erro histórico onde "RELATOR in blob" pegava acórdãos.)
+        if sinal_colegiado:
+            if sinal_desprovido:
                 if foro == "TNU":
-                    return "DECISAO_MONOCRATICA_TNU_AGRAVAVEL"
+                    return "DECISAO_COLEGIADA_TNU_ED_CABIVEL"
+                if foro == "STJ":
+                    return "DECISAO_COLEGIADA_STJ_ED_CABIVEL"
+            if sinal_provimento:
+                # provimento sem restituição — favorável mas com adequação pendente
+                if foro == "TNU":
+                    return "DECISAO_COLEGIADA_TNU_PROVIMENTO"
+                if foro == "STJ":
+                    return "DECISAO_COLEGIADA_STJ_PROVIMENTO"
+
+        # 7.3 — Decisão MONOCRÁTICA do PRESIDENTE/VICE — IRRECORRÍVEL na maioria dos casos
+        if sinal_monocratica and sinal_presidente:
+            if foro == "TNU":
+                return "DECISAO_PRESIDENTE_TNU_IRRECORRIVEL"
+            if foro == "STJ":
+                return "DECISAO_PRESIDENTE_STJ_IRRECORRIVEL"
+
+        # 7.4 — Decisão MONOCRÁTICA do Relator desprovida → cabe agravo interno
+        # (removido "RELATOR" como gatilho — todo acórdão menciona)
+        if sinal_monocratica and sinal_desprovido and not sinal_presidente:
+            if foro == "STJ":
+                return "DECISAO_MONOCRATICA_STJ_AGRAVAVEL"
+            if foro == "TNU":
+                return "DECISAO_MONOCRATICA_TNU_AGRAVAVEL"
         # Colegiada negando provimento → ED cabem
         if re.search(r"POR\s+UNANIMIDADE.*(?:DESPROVID|NEGAR\s+PROVIMENTO)|"
                      r"CONHECER\s+E\s+NEGAR\s+PROVIMENTO", blob_analise):
