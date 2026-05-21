@@ -49,6 +49,8 @@ EPROC_PROFILE_DIR = SCRIPT_DIR / "eproc_profile"  # se existir → modo TNU aute
 
 # sisdpu tem imports relativos internos — precisa do seu dir no sys.path
 sys.path.insert(0, str(MCP_DIR / "sisdpu"))
+# prazos/ é package local
+sys.path.insert(0, str(SCRIPT_DIR))
 
 # ----- Constantes -----
 
@@ -967,10 +969,34 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
     info["classificacao"] = classificacao
     metadata["classificacao"] = classificacao
 
-    # Prazos abertos
+    # Prazos abertos (heurística legada — extrai datas explícitas)
     prazos = extrair_prazos_abertos(movs)
     metadata["prazos_abertos"] = prazos
     info["prazos_abertos"] = len(prazos)
+
+    # Detector de prazos processuais (rito-aware + ciência ficta e-Proc)
+    # Calcula data-alvo aplicando regras TNU/STJ/JEF (sem dobra DPU, +10d e-Proc)
+    try:
+        from prazos.detector import detectar_prazos_novos
+        prazos_detectados = detectar_prazos_novos(
+            paj_norm=paj_norm,
+            movs_antigas=[],  # primeira detecção: todas as movs como "novas"
+            movs_novas=movs,
+            assistido=det.get("assistido", "") or alvo.get("assistido", ""),
+            foro=foro,
+            classificacao=classificacao,
+            aplicar_ciencia_ficta_eproc=True,
+        )
+        (pasta / "prazos_detectados.json").write_text(
+            json.dumps(prazos_detectados, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        info["prazos_detectados_count"] = len(prazos_detectados)
+        # Adiciona ao metadata também pra ficar visível no PROMPT_MAX
+        metadata["prazos_detectados"] = prazos_detectados
+    except Exception as e:
+        info["erros"].append(f"prazos_detectados: {e}")
+        info["prazos_detectados_count"] = 0
 
     # Grava metadata final
     (pasta / "metadata.json").write_text(
