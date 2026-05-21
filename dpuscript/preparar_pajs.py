@@ -1079,18 +1079,98 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
         encoding="utf-8",
     )
 
-    # 8. PROMPT_MAX.md
-    prompt_max = gerar_prompt_max(
-        metadata, datajud_data, eventos_tnu,
-        pecas_baixadas, stj_salvos,
-        movs, movs_relevantes, seqs_preservar, prazos,
-    )
-    (pasta / "PROMPT_MAX.md").write_text(prompt_max, encoding="utf-8")
+    # 8a. resumo_curto.md — SEMPRE (eager, ~2KB, pro UI + Grok M4)
+    resumo = gerar_resumo_curto(metadata)
+    (pasta / "resumo_curto.md").write_text(resumo, encoding="utf-8")
+    info["resumo_curto_bytes"] = len(resumo)
+
+    # 8b. PROMPT_MAX.md — só se flag --full-prompt-max (lazy default)
+    # Para elaboração de peça, JP chama dpuscript/gerar_prompt_max.py <PAJ>
+    if getattr(run, "_full_prompt_max", False):
+        prompt_max = gerar_prompt_max(
+            metadata, datajud_data, eventos_tnu,
+            pecas_baixadas, stj_salvos,
+            movs, movs_relevantes, seqs_preservar, prazos,
+        )
+        (pasta / "PROMPT_MAX.md").write_text(prompt_max, encoding="utf-8")
+        info["prompt_max_bytes"] = len(prompt_max)
 
     return info
 
 
-# ----- PROMPT_MAX.md builder -----
+# ----- resumo_curto.md builder (eager, ~2KB) -----
+
+
+def gerar_resumo_curto(metadata: dict) -> str:
+    """Gera resumo curto (~2KB) com essencial do PAJ.
+
+    Eager — gerado em toda execução do pipeline. Pro UI mostrar lista de PAJs
+    e pro Grok M4 triar. PROMPT_MAX completo só sob demanda.
+    """
+    paj = metadata.get("paj", "?")
+    det = metadata.get("detalhes_sisdpu", {}) or {}
+    assistido = det.get("assistido", "?")
+    oficio = det.get("oficio", "")
+    foro = metadata.get("foro_detectado", "?")
+    classif = metadata.get("classificacao", "?")
+    proc_jud = metadata.get("processo_judicial", "")
+    cnj = metadata.get("processo_judicial_digitos", "")
+    desc_caixa = metadata.get("desc_mov_caixa", "")
+    data_caixa = metadata.get("data_mov_caixa", "")
+    movs = det.get("movimentacoes", []) or []
+    prazos = metadata.get("prazos_detectados", []) or []
+
+    linhas = [
+        f"# Resumo do PAJ {paj}",
+        "",
+        f"- **Assistido:** {assistido}",
+        f"- **Processo judicial:** {proc_jud}",
+        f"- **Foro:** {foro}",
+        f"- **Classificação automática:** {classif}",
+        f"- **Ofício:** {oficio[:120]}",
+        f"- **Última mov da caixa ({data_caixa}):** {desc_caixa[:300]}",
+    ]
+    if prazos:
+        linhas.append("")
+        linhas.append(f"## Prazos detectados ({len(prazos)})")
+        for p in prazos[:5]:
+            alvo = p.get("data_alvo", "") or "?"
+            dias = p.get("prazo_dias", "?")
+            rito = p.get("rito", "?")
+            ciencia = "+10d e-Proc" if p.get("ciencia_ficta_aplicada") else "sem ciência ficta"
+            linhas.append(
+                f"- alvo={alvo} (prazo {dias}d, rito {rito}, {ciencia})"
+            )
+
+    # Top 3 movs recentes não-vazias
+    movs_recentes = []
+    for m in movs:
+        d = (m.get("descricao") or "").strip()
+        if len(d) > 50:
+            movs_recentes.append(
+                f"- [{(m.get('data') or '')[:10]}] {d[:280]}"
+            )
+            if len(movs_recentes) >= 3:
+                break
+    if movs_recentes:
+        linhas.append("")
+        linhas.append("## Movimentações recentes")
+        linhas.extend(movs_recentes)
+
+    linhas.append("")
+    linhas.append("---")
+    linhas.append("")
+    linhas.append(
+        "Para elaboração de peça, gerar PROMPT_MAX completo via:"
+    )
+    linhas.append(
+        f"`python dpuscript/gerar_prompt_max.py {paj}`"
+    )
+
+    return "\n".join(linhas)
+
+
+# ----- PROMPT_MAX.md builder (lazy on-demand, ~444KB) -----
 
 def _melhor(det_val: str, caixa_val: str) -> str:
     det_val = (det_val or "").strip()
@@ -1499,10 +1579,16 @@ def main() -> int:
         action="store_true",
         help="Pula reconciliação (não move PAJs órfãos)",
     )
+    parser.add_argument(
+        "--full-prompt-max",
+        action="store_true",
+        help="Gera PROMPT_MAX.md completo (default: só resumo_curto.md)",
+    )
     args = parser.parse_args()
     # Flags persistidas no objeto run pra serem lidas dentro da coroutine
     run._reconciliar_apenas = args.reconciliar_apenas
     run._no_reconciliar = args.no_reconciliar
+    run._full_prompt_max = args.full_prompt_max
     try:
         return asyncio.run(asyncio.wait_for(run(args.only, args.dry_run), timeout=TIMEOUT_TOTAL_SEG))
     except asyncio.TimeoutError:
