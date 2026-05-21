@@ -19,13 +19,13 @@ Converter PDFs grandes ou escaneados em arquivos TXT legiveis, com OCR seletivo 
 
 ```bash
 # Arquivo unico
-python skills/extracao-pdf/converter.py "Entrada/processo.pdf"
+python skills/_shared/extracao-pdf/converter.py "Entrada/processo.pdf"
 
 # Pasta inteira
-python skills/extracao-pdf/converter.py "Entrada/2026/Marco/"
+python skills/_shared/extracao-pdf/converter.py "Entrada/2026/Marco/"
 
 # Multiplos arquivos
-python skills/extracao-pdf/converter.py arquivo1.pdf arquivo2.pdf
+python skills/_shared/extracao-pdf/converter.py arquivo1.pdf arquivo2.pdf
 ```
 
 **Timeout recomendado:** 600000ms (10 min) para PDFs com muitas paginas escaneadas.

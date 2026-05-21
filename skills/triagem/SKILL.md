@@ -46,17 +46,17 @@ Com base no tribunal e tipo de decisão, consulte a árvore recursal abaixo e li
 **Decisão monocrática do PRESIDENTE da TNU (art. 15 do RI-TNU):**
 - Irrecorrível (art. 15, §1º) → **ARQUIVAMENTO** (modelo padrão)
 - Se houver obscuridade, contradição, omissão ou erro material → **Embargos de Declaração** (art. 30)
-  - Skill: `/skills/tnu/embargos-declaracao/SKILL.md`
+  - Skill: `/skills/elaboracao/tnu/embargos-declaracao/SKILL.md`
 
 **Decisão monocrática do RELATOR (art. 8º do RI-TNU):**
 - **Agravo Interno** (art. 29) — prazo de 15 dias
-  - Skill: `/skills/tnu/agravo-interno/SKILL.md`
+  - Skill: `/skills/elaboracao/tnu/agravo-interno/SKILL.md`
 - **Embargos de Declaração** (art. 30) — prazo de 5 dias
-  - Skill: `/skills/tnu/embargos-declaracao/SKILL.md`
+  - Skill: `/skills/elaboracao/tnu/embargos-declaracao/SKILL.md`
 
 **Acórdão da TNU (decisão colegiada):**
 - **Embargos de Declaração** (art. 30) — prazo de 5 dias
-  - Skill: `/skills/tnu/embargos-declaracao/SKILL.md`
+  - Skill: `/skills/elaboracao/tnu/embargos-declaracao/SKILL.md`
 - **Pedido de Uniformização ao STJ** (art. 31) — prazo de 15 dias, quando o acórdão contrariar súmula ou entendimento dominante do STJ
   - Skill: a ser criada futuramente
 - **Recurso Extraordinário ao STF** (art. 32) — prazo de 15 dias
@@ -66,33 +66,33 @@ Com base no tribunal e tipo de decisão, consulte a árvore recursal abaixo e li
 
 **Decisão monocrática do RELATOR:**
 - **Agravo Interno** (art. 259 do RI-STJ) — prazo de 15 dias
-  - Skill: `/skills/stj/agravo-interno/SKILL.md`
+  - Skill: `/skills/elaboracao/stj/agravo-interno/SKILL.md`
 - **Embargos de Declaração** (art. 263 do RI-STJ) — prazo de 5 dias
-  - Skill: `/skills/stj/embargos-declaracao/SKILL.md`
+  - Skill: `/skills/elaboracao/stj/embargos-declaracao/SKILL.md`
 
 **Decisão monocrática em matéria PENAL:**
 - **Agravo Regimental** (art. 258 do RI-STJ) — prazo de 5 dias
   - Skill: a ser criada futuramente
 - **Embargos de Declaração** (art. 263 do RI-STJ)
-  - Skill: `/skills/stj/embargos-declaracao/SKILL.md`
+  - Skill: `/skills/elaboracao/stj/embargos-declaracao/SKILL.md`
 
 **Acórdão de TURMA (em REsp):**
 - **Embargos de Declaração** (art. 263 do RI-STJ) — prazo de 5 dias
-  - Skill: `/skills/stj/embargos-declaracao/SKILL.md`
+  - Skill: `/skills/elaboracao/stj/embargos-declaracao/SKILL.md`
 - **Embargos de Divergência** (art. 266 do RI-STJ) — quando acórdão de turma em REsp divergir de outro órgão do STJ
-  - Skill: `/skills/stj/embargos-divergencia/SKILL.md`
+  - Skill: `/skills/elaboracao/stj/embargos-divergencia/SKILL.md`
 - **Recurso Extraordinário ao STF**
   - Skill: a ser criada futuramente
 
 **Decisão do PRESIDENTE do STJ:**
 - **Agravo Interno** (art. 259 do RI-STJ), quando cabível
-  - Skill: `/skills/stj/agravo-interno/SKILL.md`
+  - Skill: `/skills/elaboracao/stj/agravo-interno/SKILL.md`
 - **Embargos de Declaração** (art. 263 do RI-STJ)
-  - Skill: `/skills/stj/embargos-declaracao/SKILL.md`
+  - Skill: `/skills/elaboracao/stj/embargos-declaracao/SKILL.md`
 
 **Inadmissão do REsp na origem:**
 - **Agravo em Recurso Especial — AREsp** (art. 253 do RI-STJ)
-  - Skill: `/skills/stj/agravo-resp/SKILL.md`
+  - Skill: `/skills/elaboracao/stj/agravo-resp/SKILL.md`
 
 ---
 

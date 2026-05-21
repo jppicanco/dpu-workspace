@@ -1,5 +1,8 @@
 # Skill: Embargos de Declaração no STJ
 
+> **OBRIGATORIO CLAUDE OPUS.** Esta skill produz peca judicial intelectual. Teste comparativo 2026-05-21 reprovou Grok (4.3 fast e 4.20-reasoning) para elaboracao deste tipo de peca. Nunca delegar ao Grok no M4. Validacao anti-alucinacao tambem OBRIGATORIA antes de entregar.
+
+
 ## Objetivo
 Elaborar embargos de declaração contra decisão proferida no STJ.
 
@@ -18,7 +21,7 @@ Elaborar embargos de declaração contra decisão proferida no STJ.
 ## ETAPA 0 — Pesquisa Jurídica e Banco de Fontes (RECOMENDADA)
 
 Antes de iniciar a elaboração, execute a pesquisa jurídica para compilar fontes verificáveis:
-1. Leia e siga `/skills/pesquisa-juridica/SKILL.md`
+1. Leia e siga `/skills/pesquisa/pesquisa-juridica/SKILL.md`
 2. Gere o Banco de Fontes Verificadas (`saida/banco_fontes_verificadas.json`)
 3. Apresente o Banco ao Defensor para revisão
 4. Use APENAS fontes do Banco durante a redação, marcando cada citação com `[Fxxx]`
@@ -29,7 +32,7 @@ Se o Defensor optar por modo rápido, pule esta etapa (o sistema legado continua
 
 ## Pipeline de Elaboração
 
-O pipeline segue a mesma estrutura dos ED na TNU (consultar `/skills/tnu/embargos-declaracao/SKILL.md` para detalhamento completo), com as seguintes adaptações para o STJ:
+O pipeline segue a mesma estrutura dos ED na TNU (consultar `/skills/elaboracao/tnu/embargos-declaracao/SKILL.md` para detalhamento completo), com as seguintes adaptações para o STJ:
 
 ### Adaptações para o STJ
 
@@ -64,4 +67,4 @@ EMBARGOS DE DECLARAÇÃO
 5. Síntese Argumentativa (3-5 parágrafos)
 6. Revisão da Síntese
 7. Montagem Final
-8. Formatação (.docx via `/skills/formatacao-docx/SKILL.md`)
+8. Formatação (.docx via `/skills/_shared/formatacao-docx/SKILL.md`)

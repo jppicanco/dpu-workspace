@@ -53,7 +53,7 @@ with open('saida/peca.txt', 'w') as f:  # Corrompe acentos!
 
 ```python
 import sys
-sys.path.append(r'skills/formatacao-docx')
+sys.path.append(r'skills/_shared/formatacao-docx')
 from formatar_peca import criar_documento, salvar_documento
 
 # Ler arquivo da peça

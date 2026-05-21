@@ -10,9 +10,9 @@ cabecalhos/rodapes sao texto nativo mas o conteudo e escaneado.
 Adaptado para sistemas EPROC, STJ e PJe.
 
 Uso:
-    python skills/extracao-pdf/converter.py arquivo.pdf
-    python skills/extracao-pdf/converter.py arquivo1.pdf arquivo2.pdf
-    python skills/extracao-pdf/converter.py Entrada/pasta/
+    python skills/_shared/extracao-pdf/converter.py arquivo.pdf
+    python skills/_shared/extracao-pdf/converter.py arquivo1.pdf arquivo2.pdf
+    python skills/_shared/extracao-pdf/converter.py Entrada/pasta/
 
 Dependencias: PyMuPDF (fitz), pytesseract, Pillow
 Tesseract OCR instalado com idioma portugues (por.traineddata)
@@ -279,11 +279,11 @@ def converter_pdf(caminho_pdf, caminho_saida=None):
 
 def main():
     if len(sys.argv) < 2:
-        print("Uso: python skills/extracao-pdf/converter.py <arquivo.pdf|pasta>")
+        print("Uso: python skills/_shared/extracao-pdf/converter.py <arquivo.pdf|pasta>")
         print()
         print("Exemplos:")
-        print("  python skills/extracao-pdf/converter.py Entrada/processo.pdf")
-        print("  python skills/extracao-pdf/converter.py Entrada/2026/Marco/")
+        print("  python skills/_shared/extracao-pdf/converter.py Entrada/processo.pdf")
+        print("  python skills/_shared/extracao-pdf/converter.py Entrada/2026/Marco/")
         sys.exit(1)
 
     arquivos = []

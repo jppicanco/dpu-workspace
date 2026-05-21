@@ -83,7 +83,7 @@ Texto da conclusão.
 
 ## Assets Disponíveis
 
-Os seguintes arquivos estão em `skills/formatacao-docx/assets/`:
+Os seguintes arquivos estão em `skills/_shared/formatacao-docx/assets/`:
 
 | Arquivo | Descrição | Uso |
 |---------|-----------|-----|
@@ -205,7 +205,7 @@ Elemento visual definidor do modelo. É um retângulo posicionado à direita da 
 
 **IMPORTANTE: Usar o script `formatar_peca.py` para todas as formatações.**
 
-O script está em `skills/formatacao-docx/formatar_peca.py` e fornece funções prontas para converter texto estruturado em .docx + PDF formatados.
+O script está em `skills/_shared/formatacao-docx/formatar_peca.py` e fornece funções prontas para converter texto estruturado em .docx + PDF formatados.
 
 ### Instalação de Dependências
 

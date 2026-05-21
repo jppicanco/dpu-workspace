@@ -1,5 +1,8 @@
 # Skill: Agravo Interno no STJ
 
+> **OBRIGATORIO CLAUDE OPUS.** Esta skill produz peca judicial intelectual. Teste comparativo 2026-05-21 reprovou Grok (4.3 fast e 4.20-reasoning) para elaboracao deste tipo de peca. Nunca delegar ao Grok no M4. Validacao anti-alucinacao tambem OBRIGATORIA antes de entregar.
+
+
 ## Objetivo
 Elaborar agravo interno contra decisão monocrática de ministro no STJ, com pipeline completo de múltiplas camadas de revisão.
 
@@ -19,7 +22,7 @@ Elaborar agravo interno contra decisão monocrática de ministro no STJ, com pip
 ## ETAPA 0 — Pesquisa Jurídica e Banco de Fontes (RECOMENDADA)
 
 Antes de iniciar a elaboração, execute a pesquisa jurídica para compilar fontes verificáveis:
-1. Leia e siga `/skills/pesquisa-juridica/SKILL.md`
+1. Leia e siga `/skills/pesquisa/pesquisa-juridica/SKILL.md`
 2. Gere o Banco de Fontes Verificadas (`saida/banco_fontes_verificadas.json`)
 3. Apresente o Banco ao Defensor para revisão
 4. Use APENAS fontes do Banco durante a redação, marcando cada citação com `[Fxxx]`
@@ -30,7 +33,7 @@ Se o Defensor optar por modo rápido, pule esta etapa (o sistema legado continua
 
 ## Pipeline de Elaboração
 
-O pipeline segue a mesma estrutura do agravo interno na TNU (consultar `/skills/tnu/agravo-interno/SKILL.md` para detalhamento completo de cada etapa), com as seguintes adaptações específicas para o STJ:
+O pipeline segue a mesma estrutura do agravo interno na TNU (consultar `/skills/elaboracao/tnu/agravo-interno/SKILL.md` para detalhamento completo de cada etapa), com as seguintes adaptações específicas para o STJ:
 
 ### Adaptações para o STJ
 
@@ -75,13 +78,13 @@ AGRAVO INTERNO
 8. Seleção de Trechos-Chave
 9. Revisão dos Trechos
 10. Montagem Final
-11. Formatação (.docx via `/skills/formatacao-docx/SKILL.md`)
+11. Formatação (.docx via `/skills/_shared/formatacao-docx/SKILL.md`)
 12. Cópia do DOCX/PDF para a pasta de entrada do processo
 
 ---
 
 ## ETAPA 11: FORMATAÇÃO
 
-Leia e siga `/skills/formatacao-docx/SKILL.md` para gerar o .docx e .pdf finais.
+Leia e siga `/skills/_shared/formatacao-docx/SKILL.md` para gerar o .docx e .pdf finais.
 
 Após gerar DOCX e PDF na `/saida`, **copiar ambos para a subpasta de entrada do processo** (ex: `Entrada/XXXXX/`).

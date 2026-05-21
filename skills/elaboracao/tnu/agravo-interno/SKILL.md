@@ -1,5 +1,8 @@
 # Skill: Agravo Interno na TNU
 
+> **OBRIGATORIO CLAUDE OPUS.** Esta skill produz peca judicial intelectual. Teste comparativo 2026-05-21 reprovou Grok (4.3 fast e 4.20-reasoning) para elaboracao deste tipo de peca. Nunca delegar ao Grok no M4. Validacao anti-alucinacao tambem OBRIGATORIA antes de entregar.
+
+
 ## Objetivo
 Elaborar agravo interno contra decisão monocrática do relator na TNU, com pipeline completo de múltiplas camadas de revisão.
 
@@ -17,7 +20,7 @@ Elaborar agravo interno contra decisão monocrática do relator na TNU, com pipe
 ## ETAPA 0 — Pesquisa Jurídica e Banco de Fontes (RECOMENDADA)
 
 Antes de iniciar a elaboração, execute a pesquisa jurídica para compilar fontes verificáveis:
-1. Leia e siga `/skills/pesquisa-juridica/SKILL.md`
+1. Leia e siga `/skills/pesquisa/pesquisa-juridica/SKILL.md`
 2. Gere o Banco de Fontes Verificadas (`saida/banco_fontes_verificadas.json`)
 3. Apresente o Banco ao Defensor para revisão
 4. Use APENAS fontes do Banco durante a redação, marcando cada citação com `[Fxxx]`
@@ -173,4 +176,4 @@ CONCLUSÃO E PEDIDOS
 ```
 
 ### ETAPA 11 — Formatação
-Leia e siga `/skills/formatacao-docx/SKILL.md` para gerar o .docx final. Salve na subpasta de entrada do processo (ex: `Entrada/02152/`), não em `/saida`.
+Leia e siga `/skills/_shared/formatacao-docx/SKILL.md` para gerar o .docx final. Salve na subpasta de entrada do processo (ex: `Entrada/02152/`), não em `/saida`.

@@ -151,7 +151,7 @@ Reunir todas as fontes das fases anteriores em um unico arquivo JSON estruturado
 
 **Executar o script para extracao inicial dos PDFs:**
 ```bash
-python skills/pesquisa-juridica/pesquisar.py \
+python skills/pesquisa/pesquisa-juridica/pesquisar.py \
   --fontes "Entrada/XXXXX" \
   --processo "XXXXX-XX.XXXX.X.XX.XXXX" \
   --saida "Entrada/XXXXX/banco_fontes_verificadas.json"

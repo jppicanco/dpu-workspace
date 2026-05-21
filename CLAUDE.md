@@ -18,7 +18,7 @@ Disponiveis em `/regimentos/` em TXT: `REGIMENTO_INTERNO_TNU.txt` e `REGIMENTO_I
 
 ## Fontes Verificaveis
 
-**Regra de ouro: sem fonte verificavel, nao cite.** Fontes verificaveis: (1) documentos do processo (PDFs), (2) precedentes do BNP via MCP, (3) jurisprudencia do CJF via MCP, (4) legislacao oficial (Planalto). Se a citacao nao veio de nenhuma dessas origens, NAO cite — prefira argumentacao por principios juridicos consolidados. Detalhes em `/skills/pesquisa-juridica/SKILL.md`.
+**Regra de ouro: sem fonte verificavel, nao cite.** Fontes verificaveis: (1) documentos do processo (PDFs), (2) precedentes do BNP via MCP, (3) jurisprudencia do CJF via MCP, (4) legislacao oficial (Planalto). Se a citacao nao veio de nenhuma dessas origens, NAO cite — prefira argumentacao por principios juridicos consolidados. Detalhes em `/skills/pesquisa/pesquisa-juridica/SKILL.md`.
 
 Marcadores `[Fxxx]` referenciam o Banco de Fontes Verificadas (opcional). Na duvida, NAO cite.
 
@@ -26,15 +26,15 @@ Marcadores `[Fxxx]` referenciam o Banco de Fontes Verificadas (opcional). Na duv
 
 Ao analisar um processo:
 
-1. **Leitura** — Ler os documentos apontados pelo Defensor. Se apontar arquivo(s) especifico(s), ler SOMENTE esses arquivos. Se apontar uma pasta, ai sim ler todos os arquivos da pasta e ordenar cronologicamente. Para extrair texto de PDFs, usar `skills/pesquisa-juridica/pesquisar.py` (caminho completo) ou a ferramenta Read diretamente. SEMPRE converter PDFs para TXT antes de ler: `python skills/extracao-pdf/converter.py <arquivo.pdf>` (timeout 600000ms). O conversor e instantaneo para texto nativo e aplica OCR apenas em paginas escaneadas. Consultar `/skills/pesquisa-juridica/SKILL.md`.
+1. **Leitura** — Ler os documentos apontados pelo Defensor. Se apontar arquivo(s) especifico(s), ler SOMENTE esses arquivos. Se apontar uma pasta, ai sim ler todos os arquivos da pasta e ordenar cronologicamente. Para extrair texto de PDFs, usar `skills/pesquisa/pesquisa-juridica/pesquisar.py` (caminho completo) ou a ferramenta Read diretamente. SEMPRE converter PDFs para TXT antes de ler: `python skills/_shared/extracao-pdf/converter.py <arquivo.pdf>` (timeout 600000ms). O conversor e instantaneo para texto nativo e aplica OCR apenas em paginas escaneadas. Consultar `/skills/pesquisa/pesquisa-juridica/SKILL.md`.
 2. **Triagem** — Seguir `/skills/triagem/SKILL.md`. Identificar tribunal, decisao, recursos cabiveis (arvore recursal esta na skill), viabilidade.
 3. **Execucao** — Salvar SEMPRE na subpasta de entrada do processo (ex: `Entrada/02152/`). Seguir a skill correspondente:
    - ARQUIVAMENTO: `/skills/arquivamento/SKILL.md`
    - RECURSO: skill especifica (ver arvore recursal na triagem)
-   - MEMORIAIS: `/skills/memoriais/SKILL.md`
+   - MEMORIAIS: `/skills/elaboracao/memoriais/SKILL.md`
    - VIABILIDADE DUVIDOSA: apresentar analise, aguardar decisao
 
-**Pipeline obrigatorio:** TODA peca recursal deve passar por validacao anti-alucinacao (`/skills/validacao/SKILL.md`) e depois formatacao DOCX (`formatar_peca.py`). Apos gerar DOCX e PDF na `/saida`, copiar ambos para a subpasta de entrada do processo (ex: `Entrada/2026/Marco/`). Comandos e detalhes em `/skills/formatacao-docx/SKILL.md`.
+**Pipeline obrigatorio:** TODA peca recursal deve passar por validacao anti-alucinacao (`/skills/validacao/anti-alucinacao/SKILL.md`) e depois formatacao DOCX (`formatar_peca.py`). Apos gerar DOCX e PDF na `/saida`, copiar ambos para a subpasta de entrada do processo (ex: `Entrada/2026/Marco/`). Comandos e detalhes em `/skills/_shared/formatacao-docx/SKILL.md`.
 
 **Formato de saida por tipo de documento — regra obrigatoria:**
 - DESPACHO SISDPU → salvar APENAS como `.txt`. Sera copiado e colado diretamente no campo de movimentacao do SISDPU. Nao gerar DOCX nem PDF.
@@ -79,7 +79,7 @@ Comandos do projeto que ja embutem smart-dispatch: `/analisar`, `/arquivar`, `/a
 
 - **Uma sessao por processo.** Ao terminar um processo, sugerir `/clear` antes de iniciar o proximo. Nao acumular historico de varios processos na mesma janela.
 - **Apontar arquivos especificos, nao pastas inteiras.** Se Joao mencionar so a decisao, ler so a decisao. Carregar pasta inteira so quando ele apontar a pasta.
-- **Pre-converter PDFs avulsos.** Antes de analisar PDF que nao veio pelo pipeline `dpuscript/preparar_pajs.py` (que ja salva TXT junto), rodar `python skills/extracao-pdf/converter.py <arquivo.pdf>` e ler o TXT.
+- **Pre-converter PDFs avulsos.** Antes de analisar PDF que nao veio pelo pipeline `dpuscript/preparar_pajs.py` (que ja salva TXT junto), rodar `python skills/_shared/extracao-pdf/converter.py <arquivo.pdf>` e ler o TXT.
 - **Nunca reler PDF se o TXT ja existe** na mesma pasta.
 
 **Monitoramento de janela ativa:** Contar os turnos de conversa. Apos 15 trocas de mensagens (independente do assunto), emitir aviso proativo:
@@ -95,7 +95,7 @@ Se Joao confirmar, usar `mcp__ccd_session__spawn_task` para registrar o que esta
 ## Regras Inviolaveis
 
 ### Marcadores de Formatacao
-`## Titulo` → H1 | `### Sub` → H3 | `> Citacao` → recuo 4cm | `**negrito**` → inline (maximo 2-3 por topico) | `[Fxxx]` → nota de rodape. Encoding UTF-8 obrigatorio. Detalhes em `/skills/formatacao-docx/SKILL.md`.
+`## Titulo` → H1 | `### Sub` → H3 | `> Citacao` → recuo 4cm | `**negrito**` → inline (maximo 2-3 por topico) | `[Fxxx]` → nota de rodape. Encoding UTF-8 obrigatorio. Detalhes em `/skills/_shared/formatacao-docx/SKILL.md`.
 
 ### Inferencias
 Nao afirme fato ou conclusao sem respaldo direto nas fontes. Se o documento nao diz, voce nao afirma.
