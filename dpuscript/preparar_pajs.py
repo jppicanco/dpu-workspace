@@ -874,12 +874,20 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
         )
 
         if usa_autenticado:
-            # FASE A: baixa TODOS os PDFs em sequência rápida (sessão curta)
+            # FASE A: baixa PDFs (com skip idempotente: se já existe + tem tamanho>0, pula)
             update_state(subfase="tnu_baixando_pdfs", total_pecas=len(pecas_selecionadas))
-            log(f"  [tnu] FASE A — baixando {len(pecas_selecionadas)} PDFs...")
             docs_baixados = []  # [(doc, nome_base, pdf_bytes, content_type)]
+            ja_existentes = []   # [(doc, nome_base, content_type)] — pra processar txt depois
+            pulados = 0
             for doc in pecas_selecionadas:
                 nome_base = nome_arquivo_peca(doc)
+                pdf_path = pecas_dir / f"{nome_base}.pdf"
+                txt_path = pecas_dir / f"{nome_base}.txt"
+                # Idempotência: se PDF já existe + tem tamanho + TXT já extraído → skip total
+                if pdf_path.exists() and pdf_path.stat().st_size > 0 and txt_path.exists():
+                    pulados += 1
+                    ja_existentes.append((doc, nome_base, "application/pdf"))
+                    continue
                 try:
                     res = await clients["eproc_auth"].baixar_pdf_bytes(doc)
                     erro = res.get("erro")
@@ -888,14 +896,16 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
                         continue
                     pdf_bytes = res.get("bytes", b"")
                     content_type = res.get("content_type", "")
-                    # Salva PDF direto (se for PDF)
                     if pdf_bytes[:4] == b"%PDF" or "pdf" in content_type:
-                        (pecas_dir / f"{nome_base}.pdf").write_bytes(pdf_bytes)
+                        pdf_path.write_bytes(pdf_bytes)
                     docs_baixados.append((doc, nome_base, pdf_bytes, content_type))
                 except Exception as e:
                     info["erros"].append(f"peça {nome_base} download: {e}")
                 await asyncio.sleep(0.3)
-            log(f"  [tnu] FASE A OK — {len(docs_baixados)} PDFs em disco")
+            log(
+                f"  [tnu] FASE A — baixados {len(docs_baixados)} PDFs, "
+                f"{pulados} já em disco (skip)"
+            )
 
             # FASE B: extração de texto local (OCR só pra scans) — sem sessão e-Proc
             update_state(subfase="tnu_extraindo_texto_ocr")
