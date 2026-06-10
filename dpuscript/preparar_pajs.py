@@ -1334,7 +1334,7 @@ def gerar_prompt_max(
             except Exception:
                 pass
 
-            linhas.append(f"### {trib} — {s['url']}")
+            linhas.append(f"### {trib} — {s.get('url', '(sem url)')}")
             linhas.append("")
             if arq_pdf:
                 linhas.append(f"_Arquivos locais: `{arq_txt}` + PDF `{arq_pdf}` ({s.get('tamanho',0)} chars)_")
