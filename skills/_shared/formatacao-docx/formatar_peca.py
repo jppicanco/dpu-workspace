@@ -29,9 +29,12 @@ from docx.oxml import parse_xml
 from docx.oxml.ns import nsdecls
 from lxml import etree
 
-# Caminhos padrão
-TEMPLATE_PATH = r"D:\DPU\MODELO ARE 1446634 - agravo interno hanseníase - PAJ 2023.040.06077.docx"
-SAIDA_DIR = r"D:\DPU\dpu-workspace\saida"
+# Caminhos padrão (env vars overrideiam — usadas pelo dpuscript-ui)
+TEMPLATE_PATH = os.environ.get(
+    "FORMATAR_PECA_TEMPLATE",
+    r"D:\DPU\MODELO ARE 1446634 - agravo interno hanseníase - PAJ 2023.040.06077.docx",
+)
+SAIDA_DIR = os.environ.get("FORMATAR_PECA_SAIDA_DIR", r"D:\DPU\dpu-workspace\saida")
 
 
 def atualizar_barra_lateral(doc, texto_pedido, itens_sumario):

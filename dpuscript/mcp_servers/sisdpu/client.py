@@ -120,7 +120,12 @@ async def _ensure_logged_in():
 
 
 async def caixa_de_entrada() -> dict:
-    """Navega para a caixa de entrada e extrai os itens listados."""
+    """Navega para a caixa de entrada e extrai todos os itens.
+
+    SISDPU pode paginar (rows-per-page default 50). Pega todos via:
+    1. Extrai rows visiveis na primeira pagina
+    2. Clica next-page enquanto houver e acumula dedup
+    """
     await _ensure_logged_in()
     page = await _get_page()
     await page.goto(
@@ -130,25 +135,19 @@ async def caixa_de_entrada() -> dict:
     await page.wait_for_timeout(2000)
     await _wait_pf_ajax(page, timeout=10000)
 
-    # Captura o texto da pagina para analise
     body = await page.inner_text("body")
 
-    # Tenta extrair a estrutura da tabela/lista via JS
-    table_data = await page.evaluate("""
+    JS_EXTRACT_ROWS = """
         () => {
-            // Tenta tabelas PrimeFaces
             const tables = document.querySelectorAll('.ui-datatable-data tr, .ui-datalist-content .ui-datalist-item');
             if (tables.length > 0) {
                 return Array.from(tables).map(tr => tr.innerText.trim()).filter(t => t.length > 0);
             }
-            // Fallback: qualquer tabela
             const allTr = document.querySelectorAll('table tbody tr');
             return Array.from(allTr).map(tr => tr.innerText.trim()).filter(t => t.length > 0);
         }
-    """)
-
-    # Tenta extrair links clicaveis (PAJs) da caixa
-    links = await page.evaluate("""
+    """
+    JS_EXTRACT_LINKS = """
         () => {
             const anchors = document.querySelectorAll('a[href*="movimenta"], a[href*="processo"], a[onclick*="movimenta"]');
             return Array.from(anchors).map(a => ({
@@ -157,14 +156,49 @@ async def caixa_de_entrada() -> dict:
                 onclick: a.getAttribute('onclick') || ''
             })).filter(l => l.texto.length > 0);
         }
-    """)
+    """
+
+    all_rows: list[str] = []
+    all_links: list = []
+    seen: set = set()
+
+    rows = await page.evaluate(JS_EXTRACT_ROWS)
+    links = await page.evaluate(JS_EXTRACT_LINKS)
+    for r in rows:
+        if r not in seen:
+            seen.add(r)
+            all_rows.append(r)
+    all_links.extend(links)
+
+    for _ in range(20):  # safeguard 20 paginas
+        next_btn = await page.query_selector(".ui-paginator-next:not(.ui-state-disabled)")
+        if not next_btn:
+            break
+        try:
+            await next_btn.click()
+        except Exception:
+            break
+        await page.wait_for_timeout(800)
+        await _wait_pf_ajax(page, timeout=10000)
+        rows = await page.evaluate(JS_EXTRACT_ROWS)
+        links = await page.evaluate(JS_EXTRACT_LINKS)
+        novos = 0
+        for r in rows:
+            if r not in seen:
+                seen.add(r)
+                all_rows.append(r)
+                novos += 1
+        all_links.extend(links)
+        if novos == 0:
+            break
 
     return {
         "url": page.url,
-        "itens_tabela": table_data[:50] if table_data else [],
-        "links": links[:50] if links else [],
+        "itens_tabela": all_rows,
+        "links": all_links,
         "texto_pagina": body[:5000],
     }
+
 
 
 async def _go_to_search():

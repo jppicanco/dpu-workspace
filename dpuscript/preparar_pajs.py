@@ -638,6 +638,35 @@ def detectar_foro(sisdpu_det: dict, datajud: dict | None, cnj_digitos: str | Non
         if j == "5" and tr == "01":
             return "STJ"
 
+    # Detecta foro pela movimentacao MAIS RECENTE primeiro (peso forte).
+    # PAJ pode ter passado por TNU e depois STJ — o que importa hoje e' onde
+    # esta agora.
+    movs = (sisdpu_det or {}).get("movimentacoes", []) or []
+    TNU_TOKENS = ("TNU", "TURMA NACIONAL DE UNIFORMIZA", "EPROCTNU")
+    STJ_TOKENS = ("STJ", "SUPERIOR TRIBUNAL DE JUSTI")
+
+    def _foro_de_texto(t: str) -> str | None:
+        u = (t or "").upper()
+        has_tnu = any(x in u for x in TNU_TOKENS)
+        has_stj = any(x in u for x in STJ_TOKENS)
+        if has_stj and not has_tnu:
+            return "STJ"
+        if has_tnu and not has_stj:
+            return "TNU"
+        return None
+
+    # 1. desc_caixa (mov atual que trouxe PAJ pra caixa) — sinal mais fresco
+    f = _foro_de_texto(desc_caixa or "")
+    if f:
+        return f
+
+    # 2. Top 3 movs mais recentes (ordem decrescente do SISDPU)
+    for m in movs[:3]:
+        f = _foro_de_texto(m.get("descricao", ""))
+        if f:
+            return f
+
+    # 3. Fallback: blob completo + heuristica majoritaria
     textos = [desc_caixa or ""]
     if datajud:
         for k in ("orgao_julgador", "tribunal", "classe"):
@@ -647,15 +676,22 @@ def detectar_foro(sisdpu_det: dict, datajud: dict | None, cnj_digitos: str | Non
     for k, v in (sisdpu_det or {}).items():
         if isinstance(v, str):
             textos.append(v)
-    for m in (sisdpu_det or {}).get("movimentacoes", []) or []:
+    for m in movs:
         desc = m.get("descricao", "") or ""
         if desc:
             textos.append(desc[:500])
     blob = " ".join(textos).upper()
 
-    if any(x in blob for x in ("TNU", "TURMA NACIONAL DE UNIFORMIZA", "EPROCTNU")):
+    # Conta ocorrencias e usa majoritario
+    n_tnu = sum(blob.count(t) for t in TNU_TOKENS)
+    n_stj = sum(blob.count(t) for t in STJ_TOKENS)
+    if n_stj > n_tnu:
+        return "STJ"
+    if n_tnu > n_stj:
         return "TNU"
-    if any(x in blob for x in ("STJ", "SUPERIOR TRIBUNAL DE JUSTI")):
+    if n_tnu > 0:
+        return "TNU"
+    if n_stj > 0:
         return "STJ"
     return "OUTRO"
 
