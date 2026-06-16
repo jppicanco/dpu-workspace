@@ -108,25 +108,28 @@ Opus=DESPACHO ✓, Grok=ARQUIVAMENTO ✗.
 
 ---
 
-## Cálculo de prazo recursal — e-Proc TNU/STJ (+10 dias corridos)
+## Cálculo de prazo recursal — DEPENDE DO FORO (TNU ≠ STJ)
 
-**ERRO COMUM:** contar os dias úteis do prazo a partir da data de disponibilização
-da intimação, esquecendo os 10 dias corridos do e-Proc.
+**ERRO COMUM:** aplicar a mesma conta nos dois foros. TNU e STJ têm regras
+DIFERENTES de prazo. Confundir leva a prazo errado (perdido ou subestimado).
 
-**REALIDADE (e-Proc):** a intimação eletrônica só é considerada ABERTA após **10 dias
-corridos** da disponibilização — ciência ficta no 10º dia corrido, se não for consultada
-antes. Só ENTÃO começam a correr os dias úteis do prazo recursal.
+**TNU (e JEF):**
+- Prazo em DIAS ÚTEIS, **SEM dobra** (a DPU não tem prazo em dobro em JEF/TNU).
+- e-Proc: a intimação só é ABERTA após **10 DIAS CORRIDOS** (corridos, não úteis) da
+  disponibilização — ciência ficta no 10º dia corrido, se não consultada antes. Só
+  DEPOIS começam a correr os dias úteis.
+- Cálculo: disponibilização + 10 dias corridos = início → + dias úteis do prazo.
+- Ex.: disponib. 13/05 → +10 corridos = 23/05 → +15 dias úteis ≈ 15/06.
 
-**REGRA — sempre calcular assim:**
-1. Data da disponibilização + **10 dias corridos** = data de abertura/ciência.
-2. A partir do 1º dia útil seguinte, conte os **dias úteis** do prazo (agravo interno e
-   ED na TNU/STJ = 15 dias úteis; **SEM dobra** da DPU em JEF/TNU).
-3. Informe a **data-limite** resultante.
+**STJ:**
+- Prazo em DIAS ÚTEIS, **EM DOBRO** (a DPU TEM prazo em dobro no STJ).
+- **NÃO** existe a regra dos 10 dias corridos do e-Proc.
+- Cálculo: a partir da intimação, conte os dias úteis EM DOBRO (agravo interno/ED =
+  15 dias úteis × 2 = 30 dias úteis).
 
-**Exemplo:** disponibilização 22/05 → +10 corridos = ~01/06 → +15 dias úteis ≈ 22/06.
-NÃO é 29/05 (erro de ignorar os 10 corridos).
+**Regra mnemônica:** TNU = +10 corridos, sem dobra. STJ = sem 10 corridos, com dobra.
 
-**Origem:** JP correção em 2026-06-16.
+**Origem:** JP correção em 2026-06-16 (refinada no mesmo dia: separação TNU × STJ).
 
 ---
 
