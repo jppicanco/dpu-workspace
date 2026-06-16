@@ -10,7 +10,7 @@ Elaborar o despacho administrativo de arquivamento do Processo de Assistência J
 ## ETAPA 0 — Pesquisa Jurídica e Banco de Fontes (OPCIONAL)
 
 Para arquivamentos, a pesquisa jurídica é opcional, mas pode ser útil em casos complexos (Tipo 2):
-1. Leia e siga `/skills/pesquisa-juridica/SKILL.md`
+1. Leia e siga `/skills/pesquisa/pesquisa-juridica/SKILL.md`
 2. Gere o Banco de Fontes Verificadas (`saida/banco_fontes_verificadas.json`)
 3. Use fontes do Banco durante a redação, marcando citações com `[Fxxx]`
 
