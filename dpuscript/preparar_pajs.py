@@ -277,6 +277,15 @@ def reconciliar_caixa(
     pajs_estado = set(estado.get("pajs", {}).keys())
     orfaos = sorted(pajs_estado - pajs_caixa)
     mantidos = sorted(pajs_estado & pajs_caixa)
+    novos = sorted(pajs_caixa - pajs_estado)
+    n_tramites = len(itens_caixa)
+
+    # Resumo de verificação: caixa real do SISDPU vs o que temos aqui.
+    log(f"verificação caixa: {n_tramites} trâmites = {len(pajs_caixa)} PAJs únicos "
+        f"| {len(mantidos)} já aqui, {len(novos)} novos, {len(orfaos)} órfãos")
+    if novos:
+        log(f"  PAJs novos na caixa (rode 'Forçar pipeline M4 agora'): "
+            f"{', '.join(novos[:20])}{'…' if len(novos) > 20 else ''}")
 
     arquivados: list[str] = []
     erros: list[dict] = []
@@ -287,6 +296,8 @@ def reconciliar_caixa(
             "orfaos": [],
             "arquivados": [],
             "mantidos": mantidos,
+            "novos": novos,
+            "n_tramites": n_tramites,
             "erros": [],
         }
 
@@ -337,6 +348,8 @@ def reconciliar_caixa(
         "orfaos": orfaos,
         "arquivados": arquivados,
         "mantidos": mantidos,
+        "novos": novos,
+        "n_tramites": n_tramites,
         "erros": erros,
     }
 
