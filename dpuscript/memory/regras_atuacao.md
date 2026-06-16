@@ -75,6 +75,61 @@ omissão/contradição/obscuridade clara.
 
 ---
 
+## Sobrestamento — DESPACHO vs ARQUIVAMENTO
+
+**ERRO COMUM:** tratar todo sobrestamento como ARQUIVAMENTO (ou todo como DESPACHO).
+Existem **dois tipos distintos** com atuações completamente diferentes.
+
+**TIPO 1 — Sobrestamento COM devolução à instância anterior:**
+- Ministro/Relator sobrestа E determina retorno dos autos à instância inferior
+  (ex: TNU sobrestа e devolve à Turma Recursal; STJ sobrestа e devolve à TNU).
+- **Atuação: ARQUIVAMENTO.**
+- Despacho de arquivamento explicando o sobrestamento + devolução.
+- Comunicar ao colega que atua na instância anterior para as providências que
+  entender cabíveis, resguardada a sua independência funcional.
+
+**TIPO 2 — Sobrestamento SEM devolução (processo fica parado na instância atual):**
+- Ministro/Relator sobrestа aguardando julgamento de caso-piloto/leading case,
+  mas os autos permanecem na instância atual (TNU, STJ etc).
+- **Atuação: DESPACHO** (simples ciência + aguardar).
+- Movimentação: "Aguardar o andamento processual" / "Ciente do sobrestamento —
+  aguardar o julgamento do caso-piloto."
+- NÃO arquivar: o processo pode retomar e exigir atuação futura.
+
+**COMO DIFERENCIAR:** leia o dispositivo da decisão. Se disser "retornem/remetam/
+devolvam os autos à origem / à instância de origem" → Tipo 1 (arquivar + comunicar
+colega). Se disser apenas "sobrestа aguardando" / "suspende-se até" → Tipo 2 (despacho).
+
+**Exemplo real Tipo 2:** PAJ 2023-039-10482 — Presidente TNU sobrestou aguardando
+PUIL 6129/DF no STJ (processo-piloto do Tema 337). Autos ficam na TNU.
+Opus=DESPACHO ✓, Grok=ARQUIVAMENTO ✗.
+
+**Origem:** JP correção em 2026-06-11.
+
+---
+
+## Cálculo de prazo recursal — e-Proc TNU/STJ (+10 dias corridos)
+
+**ERRO COMUM:** contar os dias úteis do prazo a partir da data de disponibilização
+da intimação, esquecendo os 10 dias corridos do e-Proc.
+
+**REALIDADE (e-Proc):** a intimação eletrônica só é considerada ABERTA após **10 dias
+corridos** da disponibilização — ciência ficta no 10º dia corrido, se não for consultada
+antes. Só ENTÃO começam a correr os dias úteis do prazo recursal.
+
+**REGRA — sempre calcular assim:**
+1. Data da disponibilização + **10 dias corridos** = data de abertura/ciência.
+2. A partir do 1º dia útil seguinte, conte os **dias úteis** do prazo (agravo interno e
+   ED na TNU/STJ = 15 dias úteis; **SEM dobra** da DPU em JEF/TNU).
+3. Informe a **data-limite** resultante.
+
+**Exemplo:** disponibilização 22/05 → +10 corridos = ~01/06 → +15 dias úteis ≈ 22/06.
+NÃO é 29/05 (erro de ignorar os 10 corridos).
+
+**Origem:** JP correção em 2026-06-16.
+
+---
+
 ## Como adicionar nova regra
 
 JP detectou erro do Claude → editar este arquivo:
