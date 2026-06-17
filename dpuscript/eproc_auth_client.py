@@ -510,6 +510,27 @@ async def abrir_processo(numero_cnj: str) -> Page:
     return page
 
 
+def montar_url_documento(doc: dict) -> str:
+    """Monta a URL de acesso ao documento no e-Proc a partir dos campos brutos
+    (doc_id, evento_id, key, hash, mesmo_grau).
+
+    Reutilizável: serve tanto para docs do scraping da página quanto para docs
+    extraídos diretamente dos eventos da consulta do processo (fallback usado
+    quando o scraping não encontra os links).
+    """
+    url = (
+        f"{EPROC_BASE}/controlador.php?acao=acessar_documento_implementacao"
+        f"&acao_origem=acessar_documento"
+        f"&doc={doc.get('doc_id', '')}"
+        f"&evento={doc.get('evento_id', '')}"
+        f"&key={doc.get('key', '')}"
+        f"&hash={doc.get('hash', '')}"
+    )
+    if doc.get("mesmo_grau"):
+        url += f"&mesmoGrau={doc['mesmo_grau']}"
+    return url
+
+
 async def listar_documentos_processo(numero_cnj: str) -> list[dict]:
     """Lista TODOS os documentos acessíveis do processo (autenticado).
 
@@ -579,17 +600,7 @@ async def listar_documentos_processo(numero_cnj: str) -> list[dict]:
         if chave in seen:
             continue
         seen.add(chave)
-        url = (
-            f"{EPROC_BASE}/controlador.php?acao=acessar_documento_implementacao"
-            f"&acao_origem=acessar_documento"
-            f"&doc={d['doc_id']}"
-            f"&evento={d['evento_id']}"
-            f"&key={d['key']}"
-            f"&hash={d['hash']}"
-        )
-        if d.get("mesmo_grau"):
-            url += f"&mesmoGrau={d['mesmo_grau']}"
-        d["url"] = url
+        d["url"] = montar_url_documento(d)
         docs.append(d)
 
     _log(f"LISTAR_DOCS cnj={numero_cnj} encontrados={len(docs)}")

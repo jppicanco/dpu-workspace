@@ -903,6 +903,35 @@ async def processar_paj(alvo: dict, clients: dict) -> dict:
                 info["erros"].append(f"eproc_auth.listar: {e}")
                 usa_autenticado = False
 
+        # Fallback: o scraping da página não achou links de documento, mas a
+        # consulta do processo já traz doc_ids DENTRO dos próprios eventos
+        # (acontece em PUIL/Presidência e layouts atípicos). Reconstrói a lista
+        # a partir dos eventos para não ficar cego ao teor da decisão.
+        # Origem: PAJ 2025-039-15957 (negado seguimento sem documento baixado),
+        # JP correção em 2026-06-17.
+        if usa_autenticado and not docs_lista and isinstance(tnu_proc, dict):
+            recuperados = []
+            for ev in tnu_proc.get("eventos", []) or []:
+                for d in ev.get("documentos", []) or []:
+                    if not d.get("doc_id"):
+                        continue
+                    doc = {
+                        "doc_id": d.get("doc_id", ""),
+                        "evento_id": d.get("evento_id", ""),
+                        "key": d.get("key", ""),
+                        "hash": d.get("hash", ""),
+                        "mesmo_grau": d.get("mesmo_grau", ""),
+                        "nome": d.get("nome", "") or f"DOC_{str(d.get('doc_id', ''))[:8]}",
+                        "evento_numero": ev.get("numero", ""),
+                        "evento_data": ev.get("data", ""),
+                        "evento_descricao": ev.get("descricao", ""),
+                    }
+                    doc["url"] = clients["eproc_auth"].montar_url_documento(doc)
+                    recuperados.append(doc)
+            if recuperados:
+                docs_lista = recuperados
+                log(f"  [tnu] fallback: {len(recuperados)} doc(s) recuperado(s) dos eventos da consulta")
+
         if not usa_autenticado:
             try:
                 docs_result = await clients["tnu"].listar_documentos(formatar_cnj(cnj_digitos))
