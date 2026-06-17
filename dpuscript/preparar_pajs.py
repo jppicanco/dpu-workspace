@@ -1406,20 +1406,27 @@ def gerar_prompt_max(
     # tinha decisão de negativa de seguimento. Origem: erro no PAJ
     # 2025-039-15957 (negado seguimento a PUIL tratado como aguardo de
     # julgamento) — JP correção em 2026-06-17.
+    _TERMOS_DECISORIOS = (
+        "negado seguimento", "nego seguimento", "negar seguimento",
+        "negado provimento", "nego provimento", "negar provimento",
+        "não-provimento", "nao-provimento", "improvido", "improcedente",
+        "não conhecido", "nao conhecido", "não conheço", "nao conheco",
+        "não-conhecimento", "nao-conhecimento", "não conhecimento", "nao conhecimento",
+        "inadmitido", "inadmissão", "inadmissao", "não admitido", "nao admitido",
+        "indeferido", "indefiro", "indeferimento", "denegado", "denego",
+        "denegação", "denegacao", "extinto", "extinção", "extincao",
+        "prejudicado", "transitado em julgado", "trânsito em julgado",
+        "baixa definitiva",
+    )
+
+    def _texto_decisorio(texto: str) -> bool:
+        return any(t in (texto or "").lower() for t in _TERMOS_DECISORIOS)
+
     _consulta = (eventos_tnu or {}).get("consulta") or {}
     _eventos = _consulta.get("eventos") or []
     if _eventos:
-        _TERMOS_DECISORIOS = (
-            "negado seguimento", "nego seguimento", "negar seguimento",
-            "negado provimento", "nego provimento", "improvido", "improcedente",
-            "não conhecido", "nao conhecido", "não conheço", "nao conheco",
-            "inadmitido", "inadmissão", "inadmissao", "não admitido", "nao admitido",
-            "indeferido", "indefiro", "denegado", "denego", "extinto",
-            "extinção", "extincao", "prejudicado", "transitado em julgado",
-        )
-
         def _eh_decisorio(ev: dict) -> bool:
-            return any(t in (ev.get("descricao") or "").lower() for t in _TERMOS_DECISORIOS)
+            return _texto_decisorio(ev.get("descricao") or "")
 
         tem_decisorio = any(_eh_decisorio(ev) for ev in _eventos)
 
@@ -1457,6 +1464,37 @@ def gerar_prompt_max(
                     f"_Documento(s) anexo(s): {', '.join(d.get('nome', '?') for d in docs)}_"
                 )
             linhas.append("")
+
+    # ========== Movimentações oficiais do DataJud (CNJ) — não-TNU ==========
+    # DataJud traz só metadados (data + nome padronizado do CNJ), SEM teor nem
+    # documento para baixar. Útil para revelar movimentos decisórios em
+    # processos não-TNU (STJ/STF/TRF) cujo teor não foi baixado. Antes o
+    # parâmetro datajud era ignorado no corpo. Origem: JP correção em 2026-06-17.
+    _dj_movs = (datajud or {}).get("ultimas_movimentacoes") or []
+    if _dj_movs:
+        _dj_decisorias = [m for m in _dj_movs if _texto_decisorio(m.get("nome") or "")]
+        linhas.append("## Movimentações oficiais do DataJud (CNJ)")
+        linhas.append("")
+        linhas.append(
+            f"_Tribunal {datajud.get('tribunal', '?')} grau {datajud.get('grau', '?')} | "
+            f"classe {datajud.get('classe', '?')} | {datajud.get('total_movimentacoes', '?')} "
+            "movs no total. DataJud = só metadados do CNJ (sem teor nem documento)._"
+        )
+        linhas.append("")
+        if _dj_decisorias:
+            linhas.append(
+                "> ⚠️ **MOVIMENTO DECISÓRIO no DataJud** (ex.: não-conhecimento, improvido, "
+                "negado provimento, trânsito em julgado, baixa definitiva). **NÃO é \"aguardar "
+                "julgamento\"**: analisar RECURSO ou ARQUIVAMENTO. Como o DataJud não traz o "
+                "teor, obter a decisão no sistema do tribunal antes de fechar o mérito."
+            )
+            linhas.append("")
+        for m in _dj_movs[:15]:
+            nome = (m.get("nome") or "").strip() or "(sem nome)"
+            data = (m.get("data") or "")[:10]
+            marca = " 🔴 DECISÓRIO" if _texto_decisorio(nome) else ""
+            linhas.append(f"- {data} — {nome}{marca}")
+        linhas.append("")
 
     # ========== Histórico anterior relevante (movs filtradas) ==========
     historico_anterior = [
