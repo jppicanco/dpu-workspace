@@ -133,6 +133,29 @@ DIFERENTES de prazo. Confundir leva a prazo errado (perdido ou subestimado).
 
 ---
 
+## Decisão FAVORÁVEL / vitória — é ARQUIVAMENTO POR VITÓRIA, não "aguardar decurso"
+
+**ERRO COMUM:** diante de decisão FAVORÁVEL ao assistido (provimento do REsp/recurso da
+parte autora, acórdão favorável, restauração de acórdão favorável), o Grok despacha
+"manter o acompanhamento processual / aguardar decurso até <data>". ERRADO.
+
+**REALIDADE:** provimento ao recurso do assistido (ou acórdão favorável) é VITÓRIA. Não há
+o que "acompanhar" na Categoria Especial (TNU/STJ) — o que resta (execução, baixa,
+cumprimento, eventual adequação) é da DPU de **1ª categoria** na origem.
+
+**REGRA:** decisão favorável/vitória ao assistido → tipo = **ARQUIVAMENTO (por vitória)**,
+seguindo o Tipo 3 do `modelo_arquivamento.md`: arquivar com vitória + **comunicar o
+ofício/instância anterior** (1ª categoria) para as providências de cumprimento. NUNCA
+"manter acompanhamento até o decurso" diante de vitória.
+
+**Exemplo real:** PAJ 2025-039-10834 — STJ deu provimento ao REsp da assistida (Tema 979),
+restaurando acórdão favorável. Grok = DESPACHO "manter acompanhamento até 07/05/2028" ✗.
+Correto = ARQUIVAMENTO por vitória + comunicar a instância anterior.
+
+**Origem:** JP correção em 2026-06-17.
+
+---
+
 ## Como adicionar nova regra
 
 JP detectou erro do Claude → editar este arquivo:
