@@ -1278,6 +1278,28 @@ def _seq_int(m):
         return 0
 
 
+# Termos que, num evento/movimento do tribunal, indicam DECISÃO terminativa
+# (exige analisar recurso ou arquivamento — nunca "aguardar julgamento").
+# Usado no PROMPT_MAX e no sensor_movimento.py.
+TERMOS_DECISORIOS = (
+    "negado seguimento", "nego seguimento", "negar seguimento",
+    "negado provimento", "nego provimento", "negar provimento",
+    "não-provimento", "nao-provimento", "improvido", "improcedente",
+    "não conhecido", "nao conhecido", "não conheço", "nao conheco",
+    "não-conhecimento", "nao-conhecimento", "não conhecimento", "nao conhecimento",
+    "inadmitido", "inadmissão", "inadmissao", "não admitido", "nao admitido",
+    "indeferido", "indefiro", "indeferimento", "denegado", "denego",
+    "denegação", "denegacao", "extinto", "extinção", "extincao",
+    "prejudicado", "transitado em julgado", "trânsito em julgado",
+    "baixa definitiva",
+)
+
+
+def texto_decisorio(texto: str) -> bool:
+    """True se o texto contém termo de decisão terminativa."""
+    return any(t in (texto or "").lower() for t in TERMOS_DECISORIOS)
+
+
 def gerar_prompt_max(
     metadata: dict,
     datajud: dict | None,
@@ -1435,27 +1457,11 @@ def gerar_prompt_max(
     # tinha decisão de negativa de seguimento. Origem: erro no PAJ
     # 2025-039-15957 (negado seguimento a PUIL tratado como aguardo de
     # julgamento) — JP correção em 2026-06-17.
-    _TERMOS_DECISORIOS = (
-        "negado seguimento", "nego seguimento", "negar seguimento",
-        "negado provimento", "nego provimento", "negar provimento",
-        "não-provimento", "nao-provimento", "improvido", "improcedente",
-        "não conhecido", "nao conhecido", "não conheço", "nao conheco",
-        "não-conhecimento", "nao-conhecimento", "não conhecimento", "nao conhecimento",
-        "inadmitido", "inadmissão", "inadmissao", "não admitido", "nao admitido",
-        "indeferido", "indefiro", "indeferimento", "denegado", "denego",
-        "denegação", "denegacao", "extinto", "extinção", "extincao",
-        "prejudicado", "transitado em julgado", "trânsito em julgado",
-        "baixa definitiva",
-    )
-
-    def _texto_decisorio(texto: str) -> bool:
-        return any(t in (texto or "").lower() for t in _TERMOS_DECISORIOS)
-
     _consulta = (eventos_tnu or {}).get("consulta") or {}
     _eventos = _consulta.get("eventos") or []
     if _eventos:
         def _eh_decisorio(ev: dict) -> bool:
-            return _texto_decisorio(ev.get("descricao") or "")
+            return texto_decisorio(ev.get("descricao") or "")
 
         tem_decisorio = any(_eh_decisorio(ev) for ev in _eventos)
 
@@ -1501,7 +1507,7 @@ def gerar_prompt_max(
     # parâmetro datajud era ignorado no corpo. Origem: JP correção em 2026-06-17.
     _dj_movs = (datajud or {}).get("ultimas_movimentacoes") or []
     if _dj_movs:
-        _dj_decisorias = [m for m in _dj_movs if _texto_decisorio(m.get("nome") or "")]
+        _dj_decisorias = [m for m in _dj_movs if texto_decisorio(m.get("nome") or "")]
         linhas.append("## Movimentações oficiais do DataJud (CNJ)")
         linhas.append("")
         linhas.append(
@@ -1521,7 +1527,7 @@ def gerar_prompt_max(
         for m in _dj_movs[:15]:
             nome = (m.get("nome") or "").strip() or "(sem nome)"
             data = (m.get("data") or "")[:10]
-            marca = " 🔴 DECISÓRIO" if _texto_decisorio(nome) else ""
+            marca = " 🔴 DECISÓRIO" if texto_decisorio(nome) else ""
             linhas.append(f"- {data} — {nome}{marca}")
         linhas.append("")
 
