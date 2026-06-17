@@ -1398,6 +1398,66 @@ def gerar_prompt_max(
                 linhas.append("```")
             linhas.append("")
 
+    # ========== Eventos do e-Proc (tribunal) — TEOR LITERAL EMBUTIDO ==========
+    # Estes são os eventos OFICIAIS do tribunal (e-Proc TNU/DataJud), não a
+    # movimentação genérica do SISDPU. Decisões terminativas aparecem AQUI.
+    # Antes este bloco NÃO era embutido (o parâmetro eventos_tnu era ignorado) e
+    # o Grok classificava errado como "aguardar julgamento" um processo que já
+    # tinha decisão de negativa de seguimento. Origem: erro no PAJ
+    # 2025-039-15957 (negado seguimento a PUIL tratado como aguardo de
+    # julgamento) — JP correção em 2026-06-17.
+    _consulta = (eventos_tnu or {}).get("consulta") or {}
+    _eventos = _consulta.get("eventos") or []
+    if _eventos:
+        _TERMOS_DECISORIOS = (
+            "negado seguimento", "nego seguimento", "negar seguimento",
+            "negado provimento", "nego provimento", "improvido", "improcedente",
+            "não conhecido", "nao conhecido", "não conheço", "nao conheco",
+            "inadmitido", "inadmissão", "inadmissao", "não admitido", "nao admitido",
+            "indeferido", "indefiro", "denegado", "denego", "extinto",
+            "extinção", "extincao", "prejudicado", "transitado em julgado",
+        )
+
+        def _eh_decisorio(ev: dict) -> bool:
+            return any(t in (ev.get("descricao") or "").lower() for t in _TERMOS_DECISORIOS)
+
+        tem_decisorio = any(_eh_decisorio(ev) for ev in _eventos)
+
+        linhas.append("## Eventos do e-Proc (tribunal) — teor literal")
+        linhas.append("")
+        if _consulta.get("classe") or _consulta.get("relator"):
+            linhas.append(
+                f"_Classe: {_consulta.get('classe', '?')} | Relator: "
+                f"{_consulta.get('relator', '?')} | Situação: {_consulta.get('situacao', '?')}_"
+            )
+            linhas.append("")
+        if tem_decisorio:
+            linhas.append(
+                "> ⚠️ **DECISÃO/EVENTO TERMINATIVO DETECTADO no e-Proc.** Há evento com "
+                "termo decisório (negado seguimento, negado provimento, não conhecido, "
+                "inadmitido, indeferido, extinto, etc.). Isso **NÃO é \"aguardar "
+                "julgamento\"**: é decisão que exige analisar RECURSO (ex.: agravo) ou "
+                "ARQUIVAMENTO conforme o teor. Classifique pelo EVENTO DO TRIBUNAL — nunca "
+                "pela movimentação genérica do SISDPU nem pela classificação automática do PAJ."
+            )
+            linhas.append("")
+        for ev in _eventos:
+            num = ev.get("numero", "?")
+            data = ev.get("data", "?")
+            desc = (ev.get("descricao") or "").strip()
+            marca = " 🔴 DECISÓRIO" if _eh_decisorio(ev) else ""
+            linhas.append(f"### Evento {num} — {data}{marca}")
+            if desc:
+                linhas.append("")
+                linhas.append(desc)
+            docs = ev.get("documentos") or []
+            if docs:
+                linhas.append("")
+                linhas.append(
+                    f"_Documento(s) anexo(s): {', '.join(d.get('nome', '?') for d in docs)}_"
+                )
+            linhas.append("")
+
     # ========== Histórico anterior relevante (movs filtradas) ==========
     historico_anterior = [
         m for m in movs_relevantes

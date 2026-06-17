@@ -156,6 +156,42 @@ Correto = ARQUIVAMENTO por vitória + comunicar a instância anterior.
 
 ---
 
+## Evento decisório do e-Proc ≠ "aguardar julgamento" (ler eventos do tribunal)
+
+**ERRO COMUM:** classificar como DESPACHO de "ciência + aguardar julgamento" um PAJ
+cujo e-Proc (eventos_tnu.json / datajud.json) já registra decisão terminativa — ex.:
+"Negado seguimento a Recurso", "Negado provimento", "Não conhecido", "Inadmitido",
+"Indeferido", "Extinto". Causa: ancorar na movimentação genérica do SISDPU
+("intimação de Despacho/Decisão do e-Proc") e na classificação automática
+(ex.: `AGUARDA_JULGAMENTO_TNU`), sem ler os eventos oficiais do tribunal.
+
+**REALIDADE:** a movimentação do SISDPU é genérica e a classificação automática é só
+uma pista fraca. O que vale é o EVENTO DO TRIBUNAL no e-Proc. "Negado seguimento",
+"negado provimento", "não conhecido", "inadmitido", "indeferido", "extinto",
+"prejudicado" são decisões que encerram (total ou parcialmente) a fase e abrem prazo
+recursal — exigem analisar RECURSO (ex.: agravo) ou ARQUIVAMENTO, nunca "aguardar
+julgamento". (Negativa de seguimento a PUIL pelo Presidente da TNU → ver regra
+"Agravo contra inadmissão de PUIL" e RITNU.)
+
+**REGRA:**
+1. SEMPRE ler o bloco "## Eventos do e-Proc (tribunal)" do PROMPT_MAX (ou abrir
+   `eventos_tnu.json` / `datajud.json` se existir). O e-Proc PREVALECE sobre a
+   movimentação do SISDPU e sobre a classificação automática do PAJ.
+2. Se houver evento com termo decisório → classificar como decisão que exige RECURSO
+   ou ARQUIVAMENTO (analisar o teor), NUNCA "aguardar julgamento".
+3. Se o documento da decisão não estiver baixado, NÃO concluir "aguardar julgamento":
+   classificar com confiança baixa, sinalizar que é decisão terminativa e que o teor
+   precisa ser obtido para definir recurso × arquivamento.
+
+**Exemplo real:** PAJ 2025-039-15957 (JULIANA GOMES PIMENTEL, PUIL na TNU) — e-Proc
+evento 4 (06/05/2026) = "Negado seguimento a Recurso", mas o Grok classificou como
+"aguardar julgamento na TNU" porque o evento não vinha embutido no PROMPT_MAX e ele
+ancorou na movimentação genérica do SISDPU + classificação `AGUARDA_JULGAMENTO_TNU`.
+
+**Origem:** JP correção em 2026-06-17.
+
+---
+
 ## Como adicionar nova regra
 
 JP detectou erro do Claude → editar este arquivo:
